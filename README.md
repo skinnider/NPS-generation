@@ -18,6 +18,8 @@ The scripts in the `python` directory were used in the following order to prepro
 
 `datasets.py`, `functions.py`, and `models.py` contain additional classes and functions required for model training and analysis. Arguments for usage from the command line are documented within each individual script. 
 
+A demonstration dataset of 2,000 SMILES for drug-like small molecules is provided in order to demonstrate the functionality of the code. Please note, however, that these molecules were sampled at random from the  ChEMBL database (version 28) and are not themselves designer drugs. Please contact David Wishart (david dot wishart at ualberta dot ca) to request access to the complete training set used in the accompanying manuscript.
+
 ### Environment
 
 The experiments described in the manuscript were carried out in a conda environment with the following packages installed. A copy of the environment is also provided in the file `environment.yml`. 

@@ -1,0 +1,43 @@
+[project]
+name = "NPS-generation"
+version = "1.0.0"
+authors = [
+  {name="Michael Skinnider", email="skinnider@princeton.edu"}
+]
+description = "NPS-generation is a tool to train and evaluate deep generative models of novel psychoactive substances"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+]
+
+dependencies = [
+    "deepsmiles",
+    "numpy",
+    "pandas",
+    "rdkit",
+    "scipy",
+    "selfies",
+    "torch",
+    "tqdm"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+    "NPS_generation",
+    "NPS_generation.util"
+]
+
+[tool.setuptools.package-data]
+NPS_generation = ["data/*.smi"]
+
+[tool.pytest.ini_options]
+testpaths = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest"
+]

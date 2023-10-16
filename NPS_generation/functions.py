@@ -319,8 +319,7 @@ def print_update(model, dataset, epoch, batch_idx, training_loss, batch_size,
 
     # print message
     tqdm.write("*" * 50)
-    tqdm.write("epoch {:3d} -- step {:3d} -- loss: {:5.2f} -- ".\
-               format(epoch, batch_idx, training_loss) + \
+    tqdm.write("epoch {:3d} -- step {:3d} -- loss: {:5.2f} -- ".format(epoch, batch_idx, training_loss) + \
                "validation loss: {:5.2f}".\
                format(validation_loss))
 

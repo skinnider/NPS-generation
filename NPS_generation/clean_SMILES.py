@@ -17,12 +17,7 @@ from NPS_generation.functions import clean_mols, remove_salts_solvents, read_smi
 from NPS_generation.datasets import Vocabulary
 
 
-def main(input_file=None, output_file=None):
-    # parse arguments
-    if input_file is None and output_file is None:
-        input_file = sys.argv[1]
-        output_file = sys.argv[2]
-
+def main(input_file, output_file):
     # read SMILES
     basename = os.path.basename(input_file)
     smiles = read_smiles(input_file)
@@ -95,8 +90,9 @@ def main(input_file=None, output_file=None):
 
     print("wrote " + str(len(smiles)) + " SMILES to output file: " + output_file)
 
-    return 0
-
 
 if __name__ == "__main__":
-    main()
+    input_file = sys.argv[1]
+    output_file = sys.argv[2]
+
+    sys.exit(main(input_file, output_file))

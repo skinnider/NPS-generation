@@ -26,7 +26,7 @@ from NPS_generation.functions import decrease_learning_rate, print_update, track
     sample_smiles, write_smiles
 
 
-def main(argv = None):
+def main(args_list=None):
     ### CLI
     parser = argparse.ArgumentParser(
             description='Chemical structure language model interface')
@@ -104,10 +104,11 @@ def main(argv = None):
     parser.set_defaults(stop_if_exists=False)
 
     # parse arguments
-    if argv is None:
-        args = parser.parse_known_args()[0]
+    if args_list is None:
+        args = parser.parse_args()
     else:
-        args = argv
+        args = parser.parse_args(args_list)
+
 
     # manually deal with gradient clipping
     try:
@@ -290,8 +291,6 @@ def main(argv = None):
     # write sampled SMILES
     write_smiles(sampled_smiles, smiles_file)
 
-    return 0
-
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

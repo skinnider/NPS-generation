@@ -16,7 +16,7 @@ from NPS_generation.util.SmilesEnumerator import SmilesEnumerator
 from NPS_generation.functions import read_smiles, write_smiles
 
 
-def main(input_file=None, output_file=None, enum_factor=None):
+def main(args_list=None):
     ### CLI
     parser = argparse.ArgumentParser()
 
@@ -25,26 +25,18 @@ def main(input_file=None, output_file=None, enum_factor=None):
     parser.add_argument('--enum_factor', type=int,
                         help='factor to augment the dataset by')
 
-
-    args = parser.parse_known_args()[0]
-
-    if input_file is None:
-        input_file = args.input_file
-    if output_file is None:
-        output_file = args.output_file
-    if enum_factor is None:
-        enum_factor = args.enum_factor
-
+    if args_list is None:
+        args = parser.parse_args()
+    else:
+        args = parser.parse_args(args_list)
 
     # check output directory exists
-    output_dir = os.path.dirname(output_file)
+    output_dir = os.path.dirname(args.output_file)
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
 
-
-
     # read SMILES
-    smiles = read_smiles(input_file)
+    smiles = read_smiles(args.input_file)
     # convert to numpy array
     smiles = np.asarray(smiles)
 
@@ -63,18 +55,16 @@ def main(input_file=None, output_file=None, enum_factor=None):
             this_try = sme.randomize_smiles(sm)
             tries.append(this_try)
             tries = [rnd for rnd in np.unique(tries)]
-            if len(tries) > enum_factor:
-                tries = tries[:enum_factor]
+            if len(tries) > args.enum_factor:
+                tries = tries[:args.enum_factor]
                 break
         enum.extend(tries)
 
     # write to line-delimited file
-    write_smiles(enum, output_file)
+    write_smiles(enum, args.output_file)
     print("wrote " + str(len(enum)) + " SMILES to output file: " + \
-          output_file)
-
-    return 0
+          args.output_file)
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -19,11 +19,6 @@ from rdkit import rdBase
 rdBase.DisableLog('rdApp.error')
 
 
-# set working directory
-git_dir = os.path.expanduser("~/documents/NPS-generation")
-python_dir = git_dir + "/NPS_generation"
-os.chdir(python_dir)
-
 # import classes
 from NPS_generation.models import RNN, OneHotRNN, EarlyStopping
 from NPS_generation.datasets import SmilesDataset, SelfiesDataset, SmilesCollate

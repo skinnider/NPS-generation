@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import init, CrossEntropyLoss
-from datasets import Variable
+from NPS_generation.datasets import Variable
 
 class RNN(nn.Module):
 

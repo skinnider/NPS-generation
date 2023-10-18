@@ -104,10 +104,7 @@ def main(args_list=None):
     parser.set_defaults(stop_if_exists=False)
 
     # parse arguments
-    if args_list is None:
-        args = parser.parse_args()
-    else:
-        args = parser.parse_args(args_list)
+    args = parser.parse_args(args_list)
 
 
     # manually deal with gradient clipping
@@ -293,4 +290,4 @@ def main(args_list=None):
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

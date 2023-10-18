@@ -95,4 +95,4 @@ if __name__ == "__main__":
     input_file = sys.argv[1]
     output_file = sys.argv[2]
 
-    sys.exit(main(input_file, output_file))
+    main(input_file, output_file)

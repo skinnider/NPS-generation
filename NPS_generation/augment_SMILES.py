@@ -4,8 +4,6 @@ enumeration.
 """
 
 import argparse
-import sys
-
 import numpy as np
 import os
 import pandas as pd
@@ -25,10 +23,7 @@ def main(args_list=None):
     parser.add_argument('--enum_factor', type=int,
                         help='factor to augment the dataset by')
 
-    if args_list is None:
-        args = parser.parse_args()
-    else:
-        args = parser.parse_args(args_list)
+    args = parser.parse_args(args_list)
 
     # check output directory exists
     output_dir = os.path.dirname(args.output_file)
@@ -67,4 +62,4 @@ def main(args_list=None):
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

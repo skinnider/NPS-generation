@@ -30,7 +30,7 @@ def clean_mol(smiles, stereochem=False, selfies=False, deepsmiles=False):
             smiles = converter.decode(deepsmiles)
         except:
             raise ValueError("invalid DeepSMILES: " + str(deepsmiles))
-    mol = Chem.MolFromSmiles(str(smiles))
+    mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise ValueError("invalid SMILES: " + str(smiles))
     if not stereochem:

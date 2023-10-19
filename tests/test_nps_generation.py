@@ -6,18 +6,18 @@ from collections import namedtuple
 from NPS_generation.clean_SMILES import main as clean_SMILES_main
 from NPS_generation.augment_SMILES import main as augment_SMILES_main
 from NPS_generation.train_model import main as train_model_main
+from NPS_generation.calculate_outcomes import main as calculate_outcomes_main
 import NPS_generation.data as data_folder
 
 test_dir = os.path.join(os.path.dirname(__file__), "test_data")
 data_dir = data_folder.__path__[0]
+original_file = os.path.join(data_dir, "chembl_28_2000.smi")
 
 
 def test_clean_SMILES():
-    input_file = os.path.join(data_dir, "chembl_28_2000.smi")
-
     with tempfile.TemporaryDirectory() as temp_dir:
         output_file = os.path.join(temp_dir, "output1.smi")
-        clean_SMILES_main(input_file, output_file)
+        clean_SMILES_main(original_file, output_file)
 
         baseline_file = os.path.join(test_dir, "output_step1.smi")
         baseline_checksum = hashlib.md5(
@@ -61,3 +61,14 @@ def test_train_model():
         "--sample_size", "200",
     ]
     train_model_main(args_list)
+
+
+def test_calculate_outcomes():
+    sampled_file = os.path.join(test_dir, "sample-1-SMILES.smi")
+
+    args_list = [
+        '--original_file', original_file,
+        '--output_dir', test_dir,
+        '--sampled_files', sampled_file
+    ]
+    calculate_outcomes_main(args_list)

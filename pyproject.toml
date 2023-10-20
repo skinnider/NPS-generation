@@ -15,6 +15,7 @@ classifiers = [
 
 dependencies = [
     "deepsmiles",
+    "fcd_torch",
     "numpy",
     "pandas",
     "rdkit",

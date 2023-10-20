@@ -83,6 +83,6 @@ def test_calculate_outcomes_distribution():
         args_list = [
             '--smiles_file', sampled_file,
             '--reference_file', original_file,
-            '--output_di', temp_dir
+            '--output_dir', temp_dir
         ]
         calculate_outcomes_distribution_main(args_list)

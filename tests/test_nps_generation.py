@@ -5,6 +5,7 @@ from NPS_generation.clean_SMILES import main as clean_SMILES_main
 from NPS_generation.augment_SMILES import main as augment_SMILES_main
 from NPS_generation.train_model import main as train_model_main
 from NPS_generation.calculate_outcomes import main as calculate_outcomes_main
+from NPS_generation.calculate_outcomes_distribution import main as calculate_outcomes_distribution_main
 import NPS_generation.data as data_folder
 
 test_dir = os.path.join(os.path.dirname(__file__), "test_data")
@@ -58,7 +59,7 @@ def test_train_model():
             "--sample_every_steps", "200",
             "--log_every_steps", "1",
             "--sample_size", "200",
-            ]
+        ]
 
         train_model_main(args_list)
 
@@ -73,3 +74,15 @@ def test_calculate_outcomes():
             '--sampled_files', sampled_file
         ]
         calculate_outcomes_main(args_list)
+
+
+def test_calculate_outcomes_distribution():
+    sampled_file = os.path.join(test_dir, "input_step4.smi")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        args_list = [
+            '--smiles_file', sampled_file,
+            '--reference_file', original_file,
+            '--output_di', temp_dir
+        ]
+        calculate_outcomes_distribution_main(args_list)

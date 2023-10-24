@@ -118,27 +118,27 @@ def main(args_list=None):
     # add all outcomes to data frame
     res = pd.concat([res, pd.DataFrame({'outcome': 'Molecular weight',
                                    'value': mws })], axis=0)
-    res = pd.concat([res,pd.DataFrame({'outcome': 'LogP',
+    res = pd.concat([res, pd.DataFrame({'outcome': 'LogP',
                                    'value': logp })], axis=0)
-    res = pd.concat([res,pd.DataFrame({'outcome': 'BertzTC',
+    res = pd.concat([res, pd.DataFrame({'outcome': 'BertzTC',
                                    'value': tcs })], axis=0)
-    res = pd.concat([res,pd.DataFrame({'outcome': 'TPSA',
+    res = pd.concat([res, pd.DataFrame({'outcome': 'TPSA',
                                    'value': tpsa })], axis=0)
-    res = pd.concat([res,pd.DataFrame({'outcome': 'QED',
+    res = pd.concat([res, pd.DataFrame({'outcome': 'QED',
                                    'value': qed })], axis=0)
-    res = pd.concat([res,pd.DataFrame({'outcome': '% sp3 carbons',
+    res = pd.concat([res, pd.DataFrame({'outcome': '% sp3 carbons',
                                    'value': pct_sp3 })], axis=0)
-    res = pd.concat([res,pd.DataFrame({'outcome': '% heteroatoms',
+    res = pd.concat([res, pd.DataFrame({'outcome': '% heteroatoms',
                                    'value': pct_hetero})], axis=0)
-    res = pd.concat([res,pd.DataFrame({'outcome': '# of rings',
+    res = pd.concat([res, pd.DataFrame({'outcome': '# of rings',
                                    'value': rings })], axis=0)
-    res = pd.concat([pd.DataFrame({'outcome': 'Synthetic accessibility score',
+    res = pd.concat([res, pd.DataFrame({'outcome': 'Synthetic accessibility score',
                                    'value': SA })], axis=0)
-    res = pd.concat([res,pd.DataFrame({'outcome': 'Natural product-likeness score',
+    res = pd.concat([res, pd.DataFrame({'outcome': 'Natural product-likeness score',
                                    'value': NP })], axis=0)
     for idx, element in enumerate(counts[0]):
         atom_count = counts[1][idx]
-        res = pd.concat([res,pd.DataFrame({'outcome': '# atoms, ' + element,
+        res = pd.concat([res, pd.DataFrame({'outcome': '# atoms, ' + element,
                                        'value': [atom_count] })], axis=0)
 
     # make output directories

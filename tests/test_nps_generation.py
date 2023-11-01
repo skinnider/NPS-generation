@@ -108,7 +108,7 @@ def test_sample_molecules():
 
 
 def test_tabulate_molecules():
-    input_files = os.path.join(test_dir, "sampled-SMILES-1.smi")
+    input_files = os.path.join(test_dir, "input_step7.smi")
     with tempfile.TemporaryDirectory() as temp_dir:
         output_file = os.path.join(temp_dir, "output_step7.smi")
         args_list = [

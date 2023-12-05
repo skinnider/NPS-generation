@@ -21,6 +21,7 @@ dependencies = [
     "rdkit",
     "scipy",
     "selfies",
+    "snakemake",
     "torch",
     "tqdm"
 ]

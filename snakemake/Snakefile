@@ -1,0 +1,62 @@
+configfile: "config.json"
+threads: 1
+# -----------------------------------------------------------------------------
+# Setup
+# -----------------------------------------------------------------------------
+DATASETS = config["datasets"]
+REPRESENTATIONS = config["representations"]
+SAMPLE_IDXS = config["sample_idxs"]
+K = config["k"]
+OUTPUT_DIR = config['output_dir']
+
+shell.executable("/bin/bash")
+
+wildcard_constraints:
+    dataset="|".join(DATASETS)
+
+# Rules that should be run on the head node in a cluster environment
+# These typically involve web access or one time installation steps
+localrules:
+    download_datasets
+
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# Rules
+# -----------------------------------------------------------------------------
+rule all:
+    input:
+        train_files = expand(f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}.csv", dataset=DATASETS, repr=REPRESENTATIONS, sample_idx=SAMPLE_IDXS, fold=range(1, K + 1)),
+        vocab_files = expand(f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}.vocabulary", dataset=DATASETS, repr=REPRESENTATIONS, sample_idx=SAMPLE_IDXS, fold=range(1, K + 1)),
+        test_files = expand(f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}.csv", dataset=DATASETS, repr=REPRESENTATIONS, sample_idx=SAMPLE_IDXS, fold=range(1, K + 1))
+
+
+rule download_datasets:
+    params:
+        url=lambda wildcards: config['urls'][wildcards.dataset]
+    output:
+        f"{OUTPUT_DIR}/prior/raw/{{dataset}}.txt"
+    shell: """
+        wget -O - {params.url} | gunzip -c > {output}
+        """
+
+rule generate_prior_inputs:
+    input:
+        f"{OUTPUT_DIR}/prior/raw/{{dataset}}.txt"
+    output:
+        train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}.csv",
+        vocab_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}.vocabulary",
+        test_file=f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}.csv"
+    shell: """
+        python ../python/inner-preprocess-prior-datasets.py \
+        --representation {wildcards.repr} \
+        --enum_factor 0 \
+        --sample_idx {wildcards.sample_idx} \
+        --k {K} \
+        --cv_fold {wildcards.fold} \
+        --input_file {input} \
+        --train_file {output.train_file} \
+        --vocab_file {output.vocab_file} \
+        --test_file {output.test_file}
+        """
+# -----------------------------------------------------------------------------

@@ -16,11 +16,6 @@ from selfies import encoder as selfies_encoder
 from selfies.exceptions import EncoderError
 from tqdm import tqdm
 
-# set working directory
-git_dir = os.path.expanduser("~/git/invalid-smiles-analysis")
-python_dir = git_dir + "/python"
-os.chdir(python_dir)
-sys.path.append(python_dir)
 
 # import functions
 from functions import read_smiles, write_smiles, clean_mols, \
@@ -28,22 +23,17 @@ from functions import read_smiles, write_smiles, clean_mols, \
 from datasets import Vocabulary, SelfiesVocabulary
 from util.SmilesEnumerator import SmilesEnumerator
 
-### dynamically build CLI
 parser = argparse.ArgumentParser()
-## build the CLI
-grid_file = git_dir + '/sh/grids/preprocess-prior-datasets.txt'
-grid = pd.read_csv(grid_file, sep='\t')
-for arg_name in list(grid):
-    param_name = '--' + arg_name
-    param_dtype = str(grid[arg_name].dtype)
-    # convert to pandas
-    param_type = {'object': str,
-                  'int64': int,
-                  'float64': float,
-                  'bool': str
-                  }[param_dtype]
-    parser.add_argument(param_name, type=param_type)
 
+parser.add_argument('--input_file', type=str)
+parser.add_argument('--train_file', type=str)
+parser.add_argument('--test_file', type=str)
+parser.add_argument('--vocab_file', type=str)
+parser.add_argument('--representation', type=str)
+parser.add_argument('--k', type=int)
+parser.add_argument('--cv_fold', type=int)
+parser.add_argument('--sample_idx', type=int)
+parser.add_argument('--enum_factor', type=int)
 # parse all arguments
 args = parser.parse_args()
 print(args)

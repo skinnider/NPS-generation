@@ -6,8 +6,8 @@ threads: 1
 DATASETS = config["datasets"]
 DATASETS_FOLDER = config["datasets_folder"]
 REPRESENTATIONS = config["representations"]
-SAMPLE_IDXS = config["sample_idxs"]
-K = config["k"]
+SEED = config["seed"]
+FOLDS = config["folds"]
 OUTPUT_DIR = config['output_dir']
 MODEL_PARAMS = config['model_params']
 ERR_PPM = config['err_ppm']
@@ -25,64 +25,55 @@ wildcard_constraints:
 # -----------------------------------------------------------------------------
 rule all:
     input:
-        ranks_file_formula=expand(f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}_CV_ranks_formula.csv.gz",
-                       dataset=DATASETS, repr=REPRESENTATIONS, sample_idx=SAMPLE_IDXS, fold=range(1, K + 1)),
-        ranks_file_structure=expand(f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}_CV_ranks_structure.csv.gz",
-                   dataset=DATASETS, repr=REPRESENTATIONS, sample_idx=SAMPLE_IDXS, fold=range(1, K + 1)),
-        tc_file=expand(f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}_CV_tc.csv.gz",
-                   dataset=DATASETS, repr=REPRESENTATIONS, sample_idx=SAMPLE_IDXS, fold=range(1, K + 1))
+        ranks_file_formula=expand(f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_ranks_formula.csv.gz",
+                       dataset=DATASETS, repr=REPRESENTATIONS, seed=SEED, fold=range(FOLDS)),
+        ranks_file_structure=expand(f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_ranks_structure.csv.gz",
+                   dataset=DATASETS, repr=REPRESENTATIONS, seed=SEED, fold=range(FOLDS)),
+        tc_file=expand(f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_tc.csv.gz",
+                   dataset=DATASETS, repr=REPRESENTATIONS, seed=SEED, fold=range(FOLDS))
 
 
-rule generate_prior_inputs:
+rule preprocess:
     input:
         f"{DATASETS_FOLDER}/{{dataset}}.txt"
     output:
-        train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}.csv",
-        vocab_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}.vocabulary",
-        test_file=f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}.csv"
-    shell: """
-        python ../python/inner-preprocess-prior-datasets.py \
-        --representation {wildcards.repr} \
-        --enum_factor 0 \
-        --sample_idx {wildcards.sample_idx} \
-        --k {K} \
-        --cv_fold {wildcards.fold} \
-        --input_file {input} \
-        --train_file {output.train_file} \
-        --vocab_file {output.vocab_file} \
-        --test_file {output.test_file}
-        """
-
-
-# Note: This rule is not being used currently
-rule inner_create_training_sets:
-    input:
-        f"{OUTPUT_DIR}/prior/raw/"
-    output:
-        output_file=f"{OUTPUT_DIR}/prior/training/{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}_SMILES.smi",
-        vocab_file=f"{OUTPUT_DIR}/prior/training/train_{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}.vocabulary"
+        f"{OUTPUT_DIR}/prior/raw/{{dataset}}.txt"
     shell:
-        'python ../python/inner-create-training-sets.py '
-        '--input_dir {input} '
-        '--database {wildcards.dataset} '
-        '--representation {wildcards.repr} '
-        '--enum_factor {MODEL_PARAMS[enum_factor]} '
-        '--n_molecules {MODEL_PARAMS[n_molecules]} '
-        '--min_tc {MODEL_PARAMS[min_tc]} '
-        '--sample_idx {wildcards.sample_idx} '
-        '--output_file {output.output_file} '
-        '--vocab_file {output.vocab_file} '
+        'nps preprocess '
+        '--input-file {input} '
+        '--output-file {output} '
+        '--max-input-smiles {config[max_input_smiles]} '
 
 
-rule inner_train_models_RNN:
+rule create_training_sets:
     input:
-        input_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}.csv",
-        vocab_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}.vocabulary"
+        f"{OUTPUT_DIR}/prior/raw/{{dataset}}.txt"
     output:
-        smiles_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}_SMILES.smi",
-        model_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}_model.pt",
-        loss_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}_loss.csv",
-        time_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}_timing.csv"
+        train_file = f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi",
+        vocab_file = f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.vocabulary",
+        test_file = f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi"
+    shell:
+        'nps create_training_sets '
+        '--input-file {input} '
+        '--train-file {output.train_file} '
+        '--vocab-file {output.vocab_file} '
+        '--test-file {output.test_file} '
+        '--enum-factor {MODEL_PARAMS[enum_factor]} '
+        '--folds {FOLDS} '
+        '--representation {wildcards.repr} '
+        '--seed {wildcards.seed} '
+        '--max-input-smiles {config[max_input_smiles]} '
+
+
+rule train_models_RNN:
+    input:
+        input_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi",
+        vocab_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.vocabulary"
+    output:
+        smiles_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_SMILES.smi",
+        model_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_model.pt",
+        loss_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_loss.csv",
+        time_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_timing.csv"
     shell:
             'python ../python/inner-train-models-RNN.py '
             '--database {wildcards.dataset} '
@@ -90,7 +81,7 @@ rule inner_train_models_RNN:
             '--enum_factor {MODEL_PARAMS[enum_factor]} '
             '--n_molecules {MODEL_PARAMS[n_molecules]} '
             '--min_tc {MODEL_PARAMS[min_tc]} '
-            '--sample_idx {wildcards.sample_idx} '
+            '--sample_idx {wildcards.seed} '
             '--rnn_type {MODEL_PARAMS[rnn_type]} '
             '--embedding_size {MODEL_PARAMS[embedding_size]} '
             '--hidden_size {MODEL_PARAMS[hidden_size]} '
@@ -111,16 +102,15 @@ rule inner_train_models_RNN:
             '--time_file {output.time_file} '
 
 
-rule inner_sample_molecules_RNN:
+rule sample_molecules_RNN:
     input:
-        input_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}_SMILES.smi",
-        vocab_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}.vocabulary",
-        model_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}_model.pt",
-        check_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}_timing.csv"
+        input_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_SMILES.smi",
+        vocab_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.vocabulary",
+        model_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_model.pt",
+        check_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_timing.csv"
     output:
-        output_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}_sample_1.csv",
-        time_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}_timing_1.csv",
-        nvstat_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}.nvstat"
+        output_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1.csv",
+        time_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_timing_1.csv"
     shell:
         'python ../python/inner-sample-molecules-RNN.py '
         '--database {wildcards.dataset} '
@@ -128,7 +118,7 @@ rule inner_sample_molecules_RNN:
         '--enum_factor {MODEL_PARAMS[enum_factor]} '
         '--n_molecules {MODEL_PARAMS[n_molecules]} '
         '--min_tc {MODEL_PARAMS[min_tc]} '
-        '--sample_idx {wildcards.sample_idx} '
+        '--sample_idx {wildcards.seed} '
         '--rnn_type {MODEL_PARAMS[rnn_type]} '
         '--embedding_size {MODEL_PARAMS[embedding_size]} '
         '--hidden_size {MODEL_PARAMS[hidden_size]} '
@@ -136,7 +126,7 @@ rule inner_sample_molecules_RNN:
         '--dropout {MODEL_PARAMS[dropout]} '
         '--batch_size {MODEL_PARAMS[batch_size]} '
         '--learning_rate {MODEL_PARAMS[learning_rate]} '
-        '--mol_sample_idx {wildcards.sample_idx} '
+        '--mol_sample_idx {wildcards.seed} '
         '--sample_mols {MODEL_PARAMS[sample_mols]} '
         '--input_file {input.input_file} '
         '--vocab_file {input.vocab_file} '
@@ -144,22 +134,21 @@ rule inner_sample_molecules_RNN:
         '--check_file {input.check_file} '
         '--output_file {output.output_file} '
         '--time_file {output.time_file} '
-        '--nvstat_file {output.nvstat_file} '
 
 
-rule inner_write_structural_prior_CV:
+rule write_structural_prior_CV:
     input:
-        train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}.csv",
-        test_file=f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}.csv",
+        train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi",
+        test_file=f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi",
         pubchem_file=config['pubchem_gz_file'],
-        sample_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}_sample_1.csv"
+        sample_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1.csv"
     output:
-         ranks_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}_CV_ranks_structure.csv.gz",
-         tc_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}_CV_tc.csv.gz"
+         ranks_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_ranks_structure.csv.gz",
+         tc_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_tc.csv.gz"
     shell:
         'python ../python/inner-write-structural-prior-CV.py '
-        '--sample_idx {wildcards.sample_idx} '
-        '--output_dir f"{OUTPUT_DIR}/prior/structural_prior/ '
+        '--sample_idx {wildcards.seed} '
+        '--output_dir {OUTPUT_DIR}/prior/structural_prior/ '
         '--ranks_file {output.ranks_file} '
         '--tc_file {output.tc_file} '
         '--train_file {input.train_file} '
@@ -169,23 +158,21 @@ rule inner_write_structural_prior_CV:
         '--err_ppm {ERR_PPM} '
 
 
-rule inner_write_formula_prior_CV:
+rule write_formula_prior_CV:
     input:
-        train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}.csv",
-        test_file=f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}.csv",
+        train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi",
+        test_file=f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi",
         pubchem_file=config['pubchem_gz_file'],
-        sample_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}_sample_1.csv"
+        sample_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1.csv"
     output:
-         ranks_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_sample{{sample_idx}}_{{fold}}_CV_ranks_formula.csv.gz"
+         ranks_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_ranks_formula.csv.gz"
     shell:
         'python ../python/inner-write-formula-prior-CV.py '
-        '--sample_idx {wildcards.sample_idx} '
-        '--output_dir f"{OUTPUT_DIR}/prior/structural_prior/ '
+        '--sample_idx {wildcards.seed} '
+        '--output_dir {OUTPUT_DIR}/prior/structural_prior '
         '--ranks_file {output.ranks_file} '
         '--train_file {input.train_file} '
         '--test_file {input.test_file} '
         '--pubchem_file {input.pubchem_file} '
         '--sample_file {input.sample_file} '
         '--err_ppm {ERR_PPM} '
-
-# -----------------------------------------------------------------------------

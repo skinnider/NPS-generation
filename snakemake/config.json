@@ -2,13 +2,14 @@
   "output_dir": "data",
   "datasets": ["chembl_28_smiles", "gdb13_smiles"],
   "representations": ["SELFIES", "SMILES"],
-  "k": 10,
-  "sample_idxs": [1],
+  "folds": 10,
+  "seed": 0,
+  "max_input_smiles": null,
 
   "model_params": {
     "enum_factor": 0,
-    "n_molecules": 1,
-    "min_tc": 10,
+    "n_molecules": 100,
+    "min_tc": 0,
     "rnn_type": "LSTM",
     "embedding_size": 128,
     "hidden_size": 1024,
@@ -20,9 +21,9 @@
     "patience": 50000,
     "log_every_steps": 100,
     "log_every_epochs":  1,
-    "sample_mols": 500000
+    "sample_mols": 5000
   },
   "err_ppm": 10,
   "pubchem_gz_file": "/path/to/PubChem.tsv.gz",
-  "datasets_folder": "/path/to/datasets.txt"
+  "datasets_folder": "/path/to/datasets"
 }

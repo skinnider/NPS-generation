@@ -19,3 +19,6 @@
 __pycache__
 .pytest_cache
 /build/
+
+# version file (managed by setuptools-scm)
+NPS_generation/_version.py

@@ -1,13 +1,14 @@
 import os
 import hashlib
 import tempfile
-from NPS_generation.clean_SMILES import main as clean_SMILES_main
 from NPS_generation.augment_SMILES import main as augment_SMILES_main
 from NPS_generation.train_model import main as train_model_main
 from NPS_generation.calculate_outcomes import main as calculate_outcomes_main
 from NPS_generation.calculate_outcomes_distribution import main as calculate_outcomes_distribution_main
 from NPS_generation.sample_molecules import main as sample_molecules_main
 from NPS_generation.tabulate_molecules import main as tabulate_molecules_main
+from NPS_generation.commands.preprocess import preprocess
+from NPS_generation.commands.create_training_sets import create_training_sets
 import NPS_generation.data as data_folder
 
 test_dir = os.path.join(os.path.dirname(__file__), "test_data")
@@ -15,10 +16,11 @@ data_dir = data_folder.__path__[0]
 original_file = os.path.join(data_dir, "chembl_28_2000.smi")
 
 
+
 def test_clean_SMILES():
     with tempfile.TemporaryDirectory() as temp_dir:
         output_file = os.path.join(temp_dir, "output1.smi")
-        clean_SMILES_main(original_file, output_file)
+        preprocess(input_file=original_file, output_file=output_file, remove_rare=True)
 
         baseline_file = os.path.join(test_dir, "output_step1.smi")
         baseline_checksum = hashlib.md5(
@@ -33,8 +35,9 @@ def test_augment_SMILES():
 
     with tempfile.TemporaryDirectory() as temp_dir:
         output_file = os.path.join(temp_dir, "output2.smi")
-        args_list = ['--input_file', input_file, '--output_file', output_file, '--enum_factor', '1']
-        augment_SMILES_main(args_list)
+        output_vocab_file = os.path.join(temp_dir, "output2_vocab.txt")
+        create_training_sets(input_file=input_file, train_file=output_file, folds=0, vocab_file=output_vocab_file, enum_factor=1)
+
 
 
 def test_train_model():

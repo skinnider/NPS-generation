@@ -1,6 +1,9 @@
+[build-system]
+requires = ["setuptools>=61.0", "setuptools_scm>=6.2"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "NPS-generation"
-version = "1.0.0"
 authors = [
   {name="Michael Skinnider", email="skinnider@princeton.edu"}
 ]
@@ -25,6 +28,13 @@ dependencies = [
     "torch",
     "tqdm"
 ]
+dynamic = ["version"]
+
+[project.scripts]
+nps = "NPS_generation.__main__:main"
+
+[tool.setuptools_scm]
+write_to = "NPS_generation/_version.py"
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -124,7 +124,7 @@ for key, query in inputs.items():
         # add a random match
         if key == "model" and matches.shape[0] > 1:
             rnd = matches.tail(-top_n).sample()
-            tc = tc.append(rnd)
+            tc = pd.concat([tc, rnd])
         
         # compute Tc
         if tc.shape[0] > 0:
@@ -147,12 +147,12 @@ for key, query in inputs.items():
         tc_row = pd.concat(
             [pd.DataFrame([row]).iloc[np.full(tc.shape[0], 0)].\
              reset_index(drop=True), tc.reset_index(drop=True)], axis=1)
-        tc_df = tc_df.append(tc_row)
+        tc_df = pd.concat([tc_df, tc_row])
         
         # do the same for rank
         rank_row = pd.concat([pd.DataFrame([row]).reset_index(drop=True),
                               rank.reset_index(drop=True)], axis=1)
-        rank_df = rank_df.append(rank_row)
+        rank_df = pd.concat([rank_df, rank_row])
 
 # write to output files
 rank_df.to_csv(args.ranks_file, index=False,

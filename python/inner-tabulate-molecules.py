@@ -14,11 +14,6 @@ import time
 from rdkit import Chem
 from rdkit.Chem import Descriptors, rdMolDescriptors
 
-# set working directory
-git_dir = os.path.expanduser("~/git/invalid-smiles-analysis")
-python_dir = git_dir + "/python"
-os.chdir(python_dir)
-
 # import functions
 from functions import clean_mol, read_smiles
 
@@ -26,21 +21,12 @@ from functions import clean_mol, read_smiles
 from rdkit import rdBase
 rdBase.DisableLog('rdApp.error')
 
-### dynamically build CLI
 parser = argparse.ArgumentParser()
-## build the CLI
-grid_file = git_dir + '/sh/grids/tabulate-molecules.txt'
-grid = pd.read_csv(grid_file, sep='\t')
-for arg_name in list(grid):
-    param_name = '--' + arg_name
-    param_dtype = str(grid[arg_name].dtype)
-    # convert to pandas
-    param_type = {'object': str,
-                  'int64': int,
-                  'float64': float,
-                  'bool': str
-                  }[param_dtype]
-    parser.add_argument(param_name, type=param_type)
+
+parser.add_argument('--input_file', type=str)
+parser.add_argument('--train_file', type=str)
+parser.add_argument('--representation', type=str)
+parser.add_argument('--output_file', type=str)
 
 # parse all arguments
 args = parser.parse_args()
@@ -111,8 +97,3 @@ freqs.to_csv(args.output_file, index=False)
 
 # remove the tmp_file
 os.remove(tmp_file)
-
-# write time
-total_time = time.time() - start_time
-timing_df = pd.DataFrame({'stage': ['total'], 'time': [total_time]})
-timing_df.to_csv(args.time_file, index=False)

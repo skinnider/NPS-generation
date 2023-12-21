@@ -135,13 +135,25 @@ rule sample_molecules_RNN:
         '--output_file {output.output_file} '
         '--time_file {output.time_file} '
 
+rule tabulate_molecules:
+    input:
+        input_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1.csv",
+        train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi",
+    output:
+        output_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1_masses.csv",
+    shell:
+        'python ../python/inner-tabulate-molecules.py '
+        '--input_file {input.input_file} '
+        '--train_file {input.train_file} '
+        '--representation {wildcards.repr} '
+        '--output_file {output.output_file} '
 
 rule write_structural_prior_CV:
     input:
         train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi",
         test_file=f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi",
         pubchem_file=config['pubchem_gz_file'],
-        sample_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1.csv"
+        sample_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1_masses.csv"
     output:
          ranks_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_ranks_structure.csv.gz",
          tc_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_tc.csv.gz"
@@ -163,12 +175,11 @@ rule write_formula_prior_CV:
         train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi",
         test_file=f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi",
         pubchem_file=config['pubchem_gz_file'],
-        sample_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1.csv"
+        sample_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1_masses.csv"
     output:
          ranks_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_ranks_formula.csv.gz"
     shell:
         'python ../python/inner-write-formula-prior-CV.py '
-        '--sample_idx {wildcards.seed} '
         '--output_dir {OUTPUT_DIR}/prior/structural_prior '
         '--ranks_file {output.ranks_file} '
         '--train_file {input.train_file} '

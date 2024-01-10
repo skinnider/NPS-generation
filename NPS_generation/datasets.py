@@ -11,6 +11,7 @@ from itertools import chain
 from torch.utils.data import Dataset
 from NPS_generation.functions import read_smiles
 
+
 class SmilesDataset(Dataset):
     """
     A dataset of chemical structures, provided in SMILES format.
@@ -78,6 +79,7 @@ class SmilesDataset(Dataset):
             " SMILES with a vocabulary of " + str(len(self.vocabulary)) + \
             " characters"
 
+
 class SelfiesDataset(Dataset):
     """
     A dataset of chemical structures, provided in SELFIES format.
@@ -143,7 +145,8 @@ class SelfiesDataset(Dataset):
             " SELFIES with a vocabulary of " + str(len(self.vocabulary)) + \
             " characters"
 
-class SmilesCollate():
+
+class SmilesCollate:
     """
     Collate a list of SMILES tensors, with variable lengths, into a tensor.
 
@@ -175,7 +178,8 @@ class SmilesCollate():
         lengths = torch.LongTensor([len(x) for x in sequences])
         return padded, lengths
 
-class Vocabulary(object):
+
+class Vocabulary:
     """
     Handles encoding and decoding of SMILES to and from one-hot vectors.
     """
@@ -289,7 +293,8 @@ class Vocabulary(object):
         return "vocabulary containing " + str(len(self)) + " characters: " + \
             format(self.characters)
 
-class SelfiesVocabulary(object):
+
+class SelfiesVocabulary:
     """
     Handles encoding and decoding of SELFIES to and from one-hot vectors.
     """
@@ -379,6 +384,16 @@ class SelfiesVocabulary(object):
     def __str__(self):
         return "vocabulary containing " + str(len(self)) + " characters: " + \
             format(self.characters)
+
+
+def vocabulary_from_representation(representation, smiles_or_selfies):
+    if representation == "SMILES":
+        return Vocabulary(smiles_or_selfies)
+    elif representation == "SELFIES":
+        return SelfiesVocabulary(smiles_or_selfies)
+    else:
+        raise ValueError(f"Unknown representation {representation}")
+
 
 def Variable(tensor):
     """Wrapper for torch.autograd.Variable that also accepts

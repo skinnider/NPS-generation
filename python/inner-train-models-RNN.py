@@ -165,8 +165,11 @@ model.eval()
 
 # sample a set of SMILES from the final, trained model
 sampled_smiles = []
-while len(sampled_smiles) < args.sample_mols:
-    sampled_smiles.extend(model.sample(args.batch_size, return_smiles=True))
+with tqdm(total=args.sample_mols) as pbar:
+    while len(sampled_smiles) < args.sample_mols:
+        new_smiles = model.sample(args.batch_size, return_smiles=True)
+        sampled_smiles.extend(new_smiles)
+        pbar.update(len(new_smiles))
 
 # write sampled SMILES
 write_smiles(sampled_smiles, args.smiles_file)

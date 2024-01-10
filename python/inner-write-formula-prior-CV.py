@@ -113,7 +113,7 @@ for key, query in inputs.items():
         # now, append rank to the growing data frame
         rank_row = pd.concat([pd.DataFrame([row]).reset_index(drop=True),
                               rank.reset_index(drop=True)], axis=1)
-        rank_df = rank_df.append(rank_row)
+        rank_df = pd.concat([rank_df, rank_row])
 
 # write to output files
 rank_df.to_csv(args.ranks_file, index=False,

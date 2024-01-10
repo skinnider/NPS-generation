@@ -8,6 +8,7 @@ import pandas as pd
 import sys
 import time
 import torch
+from tqdm import tqdm
 
 
 # import classes and functions
@@ -94,16 +95,18 @@ sample_start_time = time.time()
 open(args.output_file, 'w').close()
 
 # sample a set of SMILES from the final, trained model
-batch_size = 512
+batch_size = 32
 sampled_count = 0
-while sampled_count < args.sample_mols:
-    sampled_smiles, losses = model.sample(batch_size, return_losses=True)
-    # increment counter
-    sampled_count += batch_size
-    # write sampled SMILES
-    with open(args.output_file, 'a+') as f:
-        for loss, sm in zip(losses, sampled_smiles):
-                _ = f.write(str(round(loss, 4)) + ',' + sm + '\n')
+with tqdm(total=args.sample_mols) as pbar:
+    while sampled_count < args.sample_mols:
+        sampled_smiles, losses = model.sample(batch_size, return_losses=True)
+        # increment counter
+        sampled_count += batch_size
+        # write sampled SMILES
+        with open(args.output_file, 'a+') as f:
+            for loss, sm in zip(losses, sampled_smiles):
+                    _ = f.write(str(round(loss, 4)) + ',' + sm + '\n')
+        pbar.update(batch_size)
 
 # write the times
 load_time = sample_start_time - start_time

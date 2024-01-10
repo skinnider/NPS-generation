@@ -258,15 +258,21 @@ def replace_halogen(smiles):
     smiles = cl.sub('L', smiles)
     return smiles
 
-def read_smiles(smiles_file):
+
+def read_smiles(smiles_file, max_lines=None):
     """
     Read a list of SMILES from a line-delimited file.
     """
     smiles = []
+    lines = 0
     with open(smiles_file, 'r') as f:
-        smiles.extend([line.strip() for line in f.readlines() \
-                       if line.strip()])
+        while line := f.readline().strip():
+            smiles.append(line)
+            lines += 1
+            if max_lines is not None and lines == max_lines:
+                break
     return smiles
+
 
 def write_smiles(smiles, smiles_file):
     """

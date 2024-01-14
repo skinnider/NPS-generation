@@ -34,23 +34,23 @@ def add_args(parser):
     return parser
 
 
-def preprocess(input_file, output_file, max_input_smiles=None, neutralise=True, min_heavy_atoms=3, valid_atoms=None, remove_rare=False, chunk_size=10000):
+def preprocess(input_file, output_file, max_input_smiles=None, neutralise=True, min_heavy_atoms=3, valid_atoms=None, remove_rare=False, chunk_size=100000):
     logger.info('reading input SMILES ...')
     all_smiles = read_smiles(smiles_file=input_file, max_lines=max_input_smiles)
 
-    def preprocess_chunk(input_smiles, output_file, neutralise=True, min_heavy_atoms=3, valid_atoms=None, remove_rare=False):
+    def preprocess_chunk(input_smiles, output_file, mode='a+', neutralise=True, min_heavy_atoms=3, valid_atoms=None, remove_rare=False):
         logger.info("Preprocessing chunk of {} SMILES".format(len(input_smiles)))
         logger.info('converting {} input SMILES to molecules ...'.format(len(input_smiles)))
         mols = clean_mols(input_smiles)
 
         logger.info('Removing heavy atoms from {} molecules ...'.format(len(mols)))
         if min_heavy_atoms > 0:
-            mols = [remove_salts_solvents(mol, hac=min_heavy_atoms) if mol else None for mol in tqdm(mols)]
+            mols = [remove_salts_solvents(mol, hac=min_heavy_atoms) if mol else None for mol in mols]
 
         if neutralise:
             logger.info(
                 'Neutralising charges from {} molecules ...'.format(len(mols)))
-            mols = [NeutraliseCharges(mol) if mol else None for mol in tqdm(mols)]
+            mols = [NeutraliseCharges(mol) if mol else None for mol in mols]
 
         elements = [[atom.GetSymbol() for atom in mol.GetAtoms()] if mol else None for mol in mols]
         valid_atoms = valid_atoms or VALID_ELEMENTS
@@ -62,7 +62,7 @@ def preprocess(input_file, output_file, max_input_smiles=None, neutralise=True, 
         mols = [mol for mol in mols if mol is not None]
 
         logger.info('converting {} molecules back to SMILES ...'.format(len(mols)))
-        smiles = [Chem.MolToSmiles(mol) for mol in tqdm(mols)]
+        smiles = [Chem.MolToSmiles(mol) for mol in mols]
         smiles = [sm for sm in smiles if sm != ""]
         smiles = list(dict.fromkeys(smiles))
         logger.info('got {} unique canonical SMILES'.format(len(smiles)))
@@ -78,18 +78,21 @@ def preprocess(input_file, output_file, max_input_smiles=None, neutralise=True, 
                 if pct_smiles < 0.01 / 100 or len(token_smiles) <= 10:
                     smiles = list(set(smiles).difference(token_smiles))
 
-        write_smiles(smiles, output_file)
+        write_smiles(smiles, output_file, mode)
 
-    for i in range(0, len(all_smiles), chunk_size):
-        input_smiles = all_smiles[i:i+chunk_size]
-        preprocess_chunk(
-            input_smiles=input_smiles,
-            output_file=output_file,
-            neutralise=neutralise,
-            min_heavy_atoms=min_heavy_atoms,
-            valid_atoms=valid_atoms,
-            remove_rare=remove_rare
-        )
+    with tqdm(total=len(all_smiles)) as pbar:
+        for i in range(0, len(all_smiles), chunk_size):
+            input_smiles = all_smiles[i:i+chunk_size]
+            preprocess_chunk(
+                input_smiles=input_smiles,
+                output_file=output_file,
+                mode='w' if i == 0 else 'a+',
+                neutralise=neutralise,
+                min_heavy_atoms=min_heavy_atoms,
+                valid_atoms=valid_atoms,
+                remove_rare=remove_rare
+            )
+            pbar.update(len(input_smiles))
 
 
 def main(args):

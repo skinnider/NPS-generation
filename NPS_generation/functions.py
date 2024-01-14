@@ -269,17 +269,17 @@ def read_smiles(smiles_file, max_lines=None):
         while line := f.readline().strip():
             smiles.append(line)
             lines += 1
-            if max_lines is not None and lines == max_lines:
+            if max_lines != 0 and max_lines is not None and lines == max_lines:
                 break
     return smiles
 
 
-def write_smiles(smiles, smiles_file):
+def write_smiles(smiles, smiles_file, mode='w'):
     """
     Write a list of SMILES to a line-delimited file.
     """
     # write sampled SMILES
-    with open(smiles_file, 'w') as f:
+    with open(smiles_file, mode) as f:
         for sm in smiles:
             _ = f.write(sm + '\n')
 

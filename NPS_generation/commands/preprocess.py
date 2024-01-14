@@ -34,49 +34,62 @@ def add_args(parser):
     return parser
 
 
-def preprocess(input_file, output_file, max_input_smiles=None, neutralise=True, min_heavy_atoms=3, valid_atoms=None, remove_rare=False):
+def preprocess(input_file, output_file, max_input_smiles=None, neutralise=True, min_heavy_atoms=3, valid_atoms=None, remove_rare=False, chunk_size=10000):
     logger.info('reading input SMILES ...')
-    input_smiles = read_smiles(smiles_file=input_file, max_lines=max_input_smiles)
+    all_smiles = read_smiles(smiles_file=input_file, max_lines=max_input_smiles)
 
-    logger.info('converting {} input SMILES to molecules ...'.format(len(input_smiles)))
-    mols = clean_mols(input_smiles)
+    def preprocess_chunk(input_smiles, output_file, neutralise=True, min_heavy_atoms=3, valid_atoms=None, remove_rare=False):
+        logger.info("Preprocessing chunk of {} SMILES".format(len(input_smiles)))
+        logger.info('converting {} input SMILES to molecules ...'.format(len(input_smiles)))
+        mols = clean_mols(input_smiles)
 
-    logger.info('Removing heavy atoms from {} molecules ...'.format(len(mols)))
-    if min_heavy_atoms > 0:
-        mols = [remove_salts_solvents(mol, hac=min_heavy_atoms) if mol else None for mol in tqdm(mols)]
+        logger.info('Removing heavy atoms from {} molecules ...'.format(len(mols)))
+        if min_heavy_atoms > 0:
+            mols = [remove_salts_solvents(mol, hac=min_heavy_atoms) if mol else None for mol in tqdm(mols)]
 
-    if neutralise:
-        logger.info(
-            'Neutralising charges from {} molecules ...'.format(len(mols)))
-        mols = [NeutraliseCharges(mol) if mol else None for mol in tqdm(mols)]
+        if neutralise:
+            logger.info(
+                'Neutralising charges from {} molecules ...'.format(len(mols)))
+            mols = [NeutraliseCharges(mol) if mol else None for mol in tqdm(mols)]
 
-    elements = [[atom.GetSymbol() for atom in mol.GetAtoms()] if mol else None for mol in mols]
-    valid_atoms = valid_atoms or VALID_ELEMENTS
-    valid = set(valid_atoms)
-    for idx, atoms in enumerate(elements):
-        if atoms is not None and len(set(atoms) - valid) > 0:
-            mols[idx] = None
+        elements = [[atom.GetSymbol() for atom in mol.GetAtoms()] if mol else None for mol in mols]
+        valid_atoms = valid_atoms or VALID_ELEMENTS
+        valid = set(valid_atoms)
+        for idx, atoms in enumerate(elements):
+            if atoms is not None and len(set(atoms) - valid) > 0:
+                mols[idx] = None
 
-    mols = [mol for mol in mols if mol is not None]
+        mols = [mol for mol in mols if mol is not None]
 
-    logger.info('converting {} molecules back to SMILES ...'.format(len(mols)))
-    smiles = [Chem.MolToSmiles(mol) for mol in tqdm(mols)]
-    smiles = [sm for sm in smiles if sm != ""]
-    smiles = list(dict.fromkeys(smiles))
-    logger.info('got {} unique canonical SMILES'.format(len(smiles)))
+        logger.info('converting {} molecules back to SMILES ...'.format(len(mols)))
+        smiles = [Chem.MolToSmiles(mol) for mol in tqdm(mols)]
+        smiles = [sm for sm in smiles if sm != ""]
+        smiles = list(dict.fromkeys(smiles))
+        logger.info('got {} unique canonical SMILES'.format(len(smiles)))
 
-    vocabulary = Vocabulary(smiles=smiles)
-    if remove_rare:
-        logger.info(f'Trimming vocabulary of size {len(vocabulary)}')
-        n_smiles = len(smiles)
-        for token in vocabulary.characters:
-            token_smiles = [sm for sm in smiles if
-                            token in vocabulary.tokenize(sm)]
-            pct_smiles = len(token_smiles) / n_smiles
-            if pct_smiles < 0.01 / 100 or len(token_smiles) <= 10:
-                smiles = list(set(smiles).difference(token_smiles))
+        vocabulary = Vocabulary(smiles=smiles)
+        if remove_rare:
+            logger.info(f'Trimming vocabulary of size {len(vocabulary)}')
+            n_smiles = len(smiles)
+            for token in vocabulary.characters:
+                token_smiles = [sm for sm in smiles if
+                                token in vocabulary.tokenize(sm)]
+                pct_smiles = len(token_smiles) / n_smiles
+                if pct_smiles < 0.01 / 100 or len(token_smiles) <= 10:
+                    smiles = list(set(smiles).difference(token_smiles))
 
-    write_smiles(smiles, output_file)
+        write_smiles(smiles, output_file)
+
+    for i in range(0, len(all_smiles), chunk_size):
+        input_smiles = all_smiles[i:i+chunk_size]
+        preprocess_chunk(
+            input_smiles=input_smiles,
+            output_file=output_file,
+            neutralise=neutralise,
+            min_heavy_atoms=min_heavy_atoms,
+            valid_atoms=valid_atoms,
+            remove_rare=remove_rare
+        )
 
 
 def main(args):

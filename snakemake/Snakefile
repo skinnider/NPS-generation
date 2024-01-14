@@ -74,6 +74,8 @@ rule train_models_RNN:
         model_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_model.pt",
         loss_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_loss.csv",
         time_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_timing.csv"
+    resources:
+        gpu=1
     shell:
             'python ../python/inner-train-models-RNN.py '
             '--database {wildcards.dataset} '
@@ -111,6 +113,8 @@ rule sample_molecules_RNN:
     output:
         output_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1.csv",
         time_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_timing_1.csv"
+    resources:
+        gpu=1
     shell:
         'python ../python/inner-sample-molecules-RNN.py '
         '--database {wildcards.dataset} '
@@ -157,6 +161,7 @@ rule write_structural_prior_CV:
     output:
          ranks_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_ranks_structure.csv.gz",
          tc_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_tc.csv.gz"
+    benchmark: "benchmark/structural_prior_{dataset}_{repr}_{seed}_{fold}.txt"
     shell:
         'python ../python/inner-write-structural-prior-CV.py '
         '--sample_idx {wildcards.seed} '
@@ -169,7 +174,6 @@ rule write_structural_prior_CV:
         '--sample_file {input.sample_file} '
         '--err_ppm {ERR_PPM} '
 
-
 rule write_formula_prior_CV:
     input:
         train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi",
@@ -178,6 +182,7 @@ rule write_formula_prior_CV:
         sample_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1_masses.csv"
     output:
          ranks_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_ranks_formula.csv.gz"
+    benchmark: "benchmark/formula_prior_{dataset}_{repr}_{seed}_{fold}.txt"
     shell:
         'python ../python/inner-write-formula-prior-CV.py '
         '--output_dir {OUTPUT_DIR}/prior/structural_prior '

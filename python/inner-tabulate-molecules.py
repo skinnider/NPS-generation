@@ -11,6 +11,7 @@ import argparse
 import os
 import pandas as pd
 import time
+from tqdm import tqdm
 from rdkit import Chem
 from rdkit.Chem import Descriptors, rdMolDescriptors
 
@@ -52,8 +53,9 @@ if os.path.exists(tmp_file):
 f2 = open(tmp_file, 'a+')
 
 # read SMILES line-by-line, and calculate properties for real molecules
-with open(args.input_file) as f1:
-    for line_idx, line in enumerate(f1):
+with open(args.input_file, 'r') as f1:
+    f1_lines = list(f1.readlines())
+    for line in tqdm(f1_lines, total=len(f1_lines)):
         # split line
         split = line.strip().split(',')
         if len(split) == 2:
@@ -83,7 +85,7 @@ with open(args.input_file) as f1:
                 _ = f2.write(row + '\n')
                 f2.flush()
         except ValueError:
-            next
+            pass
 
 # read temporary output, and tabulate frequencies
 # NOTE: group by canonical SMILES and pick the best log-likelihood

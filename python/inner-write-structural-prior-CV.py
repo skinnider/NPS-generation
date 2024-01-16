@@ -146,7 +146,7 @@ for key, query in inputs.items():
         
         # compute Tc
         if tc.shape[0] > 0:
-            target_mols = clean_mols(tc['target_smiles'].values)
+            target_mols = clean_mols(tc['target_smiles'].values, disable_progress=True)
             keep = [idx for idx, mol in enumerate(target_mols) if mol]
             tc = tc.iloc[keep, :]
             target_mols = [mol for mol in target_mols if mol]

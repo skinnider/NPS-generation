@@ -38,6 +38,10 @@ rule preprocess:
         f"{DATASETS_FOLDER}/{{dataset}}.txt"
     output:
         f"{OUTPUT_DIR}/prior/raw/{{dataset}}.txt"
+    resources:
+        mem_mb=12000,
+        runtime=30,
+        nodes=1
     shell:
         'nps preprocess '
         '--input-file {input} '
@@ -52,6 +56,10 @@ rule create_training_sets:
         train_file = f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi",
         vocab_file = f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.vocabulary",
         test_file = f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi"
+    resources:
+        mem_mb=20000,
+        runtime=10,
+        nodes=1
     shell:
         'nps create_training_sets '
         '--input-file {input} '
@@ -75,7 +83,9 @@ rule train_models_RNN:
         loss_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_loss.csv",
         time_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_timing.csv"
     resources:
-        gpu=1
+        mem_mb=32000,
+        runtime=MODEL_PARAMS["max_epochs"]*120,
+        slurm_extra="--gres=gpu:1"
     shell:
             'python ../python/inner-train-models-RNN.py '
             '--database {wildcards.dataset} '
@@ -114,7 +124,9 @@ rule sample_molecules_RNN:
         output_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1.csv",
         time_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_timing_1.csv"
     resources:
-        gpu=1
+        mem_mb=1000,
+        runtime=MODEL_PARAMS["sample_mols"]//10000,
+        slurm_extra="--gres=gpu:1"
     shell:
         'python ../python/inner-sample-molecules-RNN.py '
         '--database {wildcards.dataset} '
@@ -145,6 +157,9 @@ rule tabulate_molecules:
         train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi",
     output:
         output_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1_masses.csv",
+    resources:
+        mem_mb=4000,
+        runtime=MODEL_PARAMS["sample_mols"]//1000,
     shell:
         'python ../python/inner-tabulate-molecules.py '
         '--input_file {input.input_file} '
@@ -161,6 +176,9 @@ rule write_structural_prior_CV:
     output:
          ranks_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_ranks_structure.csv.gz",
          tc_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_tc.csv.gz"
+    resources:
+        mem_mb=32000,
+        runtime=120,
     benchmark: "benchmark/structural_prior_{dataset}_{repr}_{seed}_{fold}.txt"
     shell:
         'python ../python/inner-write-structural-prior-CV.py '
@@ -182,6 +200,9 @@ rule write_formula_prior_CV:
         sample_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1_masses.csv"
     output:
          ranks_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_ranks_formula.csv.gz"
+    resources:
+        mem_mb=32000,
+        runtime=120,
     benchmark: "benchmark/formula_prior_{dataset}_{repr}_{seed}_{fold}.txt"
     shell:
         'python ../python/inner-write-formula-prior-CV.py '

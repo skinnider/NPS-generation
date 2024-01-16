@@ -32,13 +32,13 @@ def clean_mol(smiles, representation='SMILES', stereochem=False):
     mol = Chem.RemoveHs(mol)
     return mol
 
-def clean_mols(all_smiles, representation='SMILES', stereochem=False):
+def clean_mols(all_smiles, representation='SMILES', stereochem=False, disable_progress=False):
     """
     Construct a list of molecules from a list of SMILES strings, replacing
     invalid molecules with None in the list.
     """
     mols = []
-    for smiles in tqdm(all_smiles):
+    for smiles in tqdm(all_smiles, disable=disable_progress):
         try:
             mol = clean_mol(smiles, representation, stereochem)
             mols.append(mol)
@@ -228,14 +228,18 @@ def replace_halogen(smiles):
     smiles = cl.sub('L', smiles)
     return smiles
 
-def read_smiles(smiles_file):
+def read_smiles(smiles_file, max_lines=None):
     """
     Read a list of SMILES from a line-delimited file.
     """
     smiles = []
+    lines = 0
     with open(smiles_file, 'r') as f:
-        smiles.extend([line.strip() for line in f.readlines() \
-                       if line.strip()])
+        while line := f.readline().strip():
+            smiles.append(line)
+            lines += 1
+            if max_lines != 0 and max_lines is not None and lines == max_lines:
+                break
     return smiles
 
 def write_smiles(smiles, smiles_file):

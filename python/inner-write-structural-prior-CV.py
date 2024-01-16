@@ -25,6 +25,7 @@ parser.add_argument('--test_file', type=str)
 parser.add_argument('--pubchem_file', type=str)
 parser.add_argument('--sample_file', type=str)
 parser.add_argument('--err_ppm', type=int)
+parser.add_argument('--chunk_size', type=int, default=100000)
 
 # parse all arguments
 args = parser.parse_args()
@@ -34,25 +35,42 @@ if not os.path.isdir(args.output_dir):
     os.makedirs(args.output_dir)
 
 # read training and test sets
-train_smiles = read_smiles(args.train_file)
-test_smiles = read_smiles(args.test_file)
+all_train_smiles = read_smiles(args.train_file)
 
-# calculate the masses and molecular formulas of the train and test sets
-train_mols = clean_mols(train_smiles)
-train_masses = [round(Descriptors.ExactMolWt(mol), 4) for mol in train_mols]
-train_fmlas = [rdMolDescriptors.CalcMolFormula(mol) for mol in train_mols]
-test_mols = clean_mols(test_smiles)
-test_masses = [round(Descriptors.ExactMolWt(mol), 4) for mol in test_mols]
-test_fmlas = [rdMolDescriptors.CalcMolFormula(mol) for mol in test_mols]
-test = pd.DataFrame({'smiles': test_smiles})
-test = test.assign(mass=test_masses, formula=test_fmlas)
+train_masses = []
+train_fmlas = []
+with tqdm(total=len(all_train_smiles)) as pbar:
+    for i in range(0, len(all_train_smiles), args.chunk_size):
+        smiles = all_train_smiles[i:i+args.chunk_size]
+        mols = clean_mols(smiles, disable_progress=True)
+        train_masses.extend([round(Descriptors.ExactMolWt(mol), 4) for mol in mols])
+        train_fmlas.extend([rdMolDescriptors.CalcMolFormula(mol) for mol in mols])
+        pbar.update(len(smiles))
+
+train = pd.DataFrame({'smiles': all_train_smiles,
+                      'mass': train_masses,
+                      'formula': train_fmlas})
+
+all_test_smiles = read_smiles(args.test_file)
+
+test_masses = []
+test_fmlas = []
+with tqdm(total=len(all_test_smiles)) as pbar:
+    for i in range(0, len(all_train_smiles), args.chunk_size):
+        smiles = all_test_smiles[i:i+args.chunk_size]
+        mols = clean_mols(smiles, disable_progress=True)
+        test_masses.extend([round(Descriptors.ExactMolWt(mol), 4) for mol in mols])
+        test_fmlas.extend([rdMolDescriptors.CalcMolFormula(mol) for mol in mols])
+        pbar.update(len(smiles))
+
+test = pd.DataFrame({'smiles': all_test_smiles,
+                      'mass': test_masses,
+                      'formula': test_fmlas})
 test = test.assign(mass_known=test['mass'].isin(train_masses))
 test = test.assign(formula_known=test['formula'].isin(train_fmlas))
 
 # create training set
-train = pd.DataFrame({'smiles': train_smiles, 
-                      'mass': train_masses,
-                      'formula': train_fmlas})
+
 # assign frequencies as NAs
 train = train.assign(size=np.nan)
 

@@ -69,8 +69,6 @@ test = pd.DataFrame({'smiles': all_test_smiles,
 test = test.assign(mass_known=test['mass'].isin(train_masses))
 test = test.assign(formula_known=test['formula'].isin(train_fmlas))
 
-# create training set
-
 # assign frequencies as NAs
 train = train.assign(size=np.nan)
 

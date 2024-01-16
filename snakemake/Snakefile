@@ -41,7 +41,6 @@ rule preprocess:
     resources:
         mem_mb=12000,
         runtime=30,
-        nodes=1
     shell:
         'nps preprocess '
         '--input-file {input} '
@@ -59,7 +58,6 @@ rule create_training_sets:
     resources:
         mem_mb=20000,
         runtime=10,
-        nodes=1
     shell:
         'nps create_training_sets '
         '--input-file {input} '

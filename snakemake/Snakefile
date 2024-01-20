@@ -176,7 +176,7 @@ rule write_structural_prior_CV:
          tc_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_tc.csv.gz"
     resources:
         mem_mb=32000,
-        runtime=120,
+        runtime=180,
     benchmark: "benchmark/structural_prior_{dataset}_{repr}_{seed}_{fold}.txt"
     shell:
         'python ../python/inner-write-structural-prior-CV.py '
@@ -200,7 +200,7 @@ rule write_formula_prior_CV:
          ranks_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_ranks_formula.csv.gz"
     resources:
         mem_mb=32000,
-        runtime=120,
+        runtime=180,
     benchmark: "benchmark/formula_prior_{dataset}_{repr}_{seed}_{fold}.txt"
     shell:
         'python ../python/inner-write-formula-prior-CV.py '

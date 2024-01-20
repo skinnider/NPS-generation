@@ -28,9 +28,9 @@ rule tabulate_molecules:
 rule write_structural_prior_CV:
     resources:
         mem_mb=32000,
-        runtime=120
+        runtime=180
 
 rule write_formula_prior_CV:
     resources:
         mem_mb=32000,
-        runtime=120
+        runtime=180

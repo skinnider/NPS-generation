@@ -8,6 +8,7 @@ DATASETS_FOLDER = config["datasets_folder"]
 REPRESENTATIONS = config["representations"]
 SEED = config["seed"]
 FOLDS = config["folds"]
+METRICS = config["metrics"]
 OUTPUT_DIR = config['output_dir']
 MODEL_PARAMS = config['model_params']
 ERR_PPM = config['err_ppm']
@@ -30,8 +31,10 @@ rule all:
         ranks_file_structure=expand(f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_ranks_structure.csv.gz",
                    dataset=DATASETS, repr=REPRESENTATIONS, seed=SEED, fold=range(FOLDS)),
         tc_file=expand(f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_tc.csv.gz",
-                   dataset=DATASETS, repr=REPRESENTATIONS, seed=SEED, fold=range(FOLDS))
-
+                   dataset=DATASETS, repr=REPRESENTATIONS, seed=SEED, fold=range(FOLDS)),
+        unique_masses_file=expand(f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_unique_masses.csv",
+                    dataset=DATASETS, repr=REPRESENTATIONS, seed=SEED, fold=range(FOLDS)),
+        processed_file=expand(f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_processed_{{metric}}.csv", dataset=DATASETS, repr=REPRESENTATIONS, metric=METRICS)
 
 rule preprocess:
     input:
@@ -149,6 +152,7 @@ rule sample_molecules_RNN:
         '--output_file {output.output_file} '
         '--time_file {output.time_file} '
 
+
 rule tabulate_molecules:
     input:
         input_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1.csv",
@@ -164,6 +168,40 @@ rule tabulate_molecules:
         '--train_file {input.train_file} '
         '--representation {wildcards.repr} '
         '--output_file {output.output_file} '
+
+
+rule collect_tabulated_molecules:
+    input:
+        input_files=expand(f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1_masses.csv", seed=SEED, allow_missing=True)
+    output:
+        output_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_unique_masses.csv",
+    resources:
+        mem_mb=4000,
+        runtime=MODEL_PARAMS["sample_mols"]//1000,
+    shell:
+        'python ../python/inner-collect-tabulated-molecules.py '
+        '--input_files {input.input_files} '
+        '--output_file {output.output_file} '
+
+
+rule process_tabulated_molecules:
+    input:
+        input_file=expand(f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_unique_masses.csv", dataset=DATASETS, repr=REPRESENTATIONS, fold=range(FOLDS)),
+        cv_file=expand(f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi", dataset=DATASETS, repr=REPRESENTATIONS, seed=SEED, fold=range(FOLDS))
+    params:
+        summary_fn=lambda wildcards, output: os.path.splitext(os.path.basename(output.output_file[0]))[0].split('_')[-1]
+    output:
+        output_file=expand(f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_processed_{{metric}}.csv", dataset=DATASETS, repr=REPRESENTATIONS, allow_missing=True),
+    resources:
+        mem_mb=4000,
+        runtime=MODEL_PARAMS["sample_mols"]//1000,
+    shell:
+        'python ../python/inner-process-tabulated-molecules.py '
+        '--input_file {input.input_file} '
+        '--cv_file {input.cv_file} '
+        '--output_file {output.output_file} '
+        '--summary_fn {params.summary_fn} '
+
 
 rule write_structural_prior_CV:
     input:
@@ -189,6 +227,7 @@ rule write_structural_prior_CV:
         '--pubchem_file {input.pubchem_file} '
         '--sample_file {input.sample_file} '
         '--err_ppm {ERR_PPM} '
+
 
 rule write_formula_prior_CV:
     input:

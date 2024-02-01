@@ -34,7 +34,7 @@ for fold_idx, file in enumerate(args.input_file):
     _metas.append(_meta)
 meta = pd.concat(_metas)
 
-data = meta.pivot_table(index='smiles', columns='fold', values='size', aggfunc='first')
+data = meta.pivot_table(index='smiles', columns='fold', values='size', aggfunc='first', fill_value=0)
 data[np.isnan(data)] = 0
 
 uniq_smiles = data.index.to_numpy()
@@ -52,9 +52,13 @@ if args.summary_fn == 'fp10k':
 
 # Calculate mean/sum
 if args.summary_fn == 'freq-sum':
+    # With what frequency (across all folds)
+    # were valid molecules produced by our models?
     sums = np.nansum(data, axis=1)
     data = pd.DataFrame({"smiles": list(uniq_smiles), "size": sums})
 else:
+    # With what average frequency (across all folds)
+    # were valid molecules produced by our models?
     means = np.nanmean(data, axis=1)
     data = pd.DataFrame({"smiles": list(uniq_smiles), "size": means})
 

@@ -3,10 +3,9 @@ threads: 1
 # -----------------------------------------------------------------------------
 # Setup
 # -----------------------------------------------------------------------------
-DATASETS = config["datasets"]
-DATASETS_FOLDER = config["datasets_folder"]
+DATASET = os.path.splitext(os.path.basename(config["dataset"]))[0]
 REPRESENTATIONS = config["representations"]
-SEED = config["seed"]
+SEEDS = config["seeds"]
 FOLDS = config["folds"]
 METRICS = config["metrics"]
 OUTPUT_DIR = config['output_dir']
@@ -14,9 +13,6 @@ MODEL_PARAMS = config['model_params']
 ERR_PPM = config['err_ppm']
 
 shell.executable("/bin/bash")
-
-wildcard_constraints:
-    dataset="|".join(DATASETS)
 
 
 # -----------------------------------------------------------------------------
@@ -26,19 +22,19 @@ wildcard_constraints:
 # -----------------------------------------------------------------------------
 rule all:
     input:
-        ranks_file_formula=expand(f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_ranks_formula.csv.gz",
-                       dataset=DATASETS, repr=REPRESENTATIONS, seed=SEED, fold=range(FOLDS)),
-        ranks_file_structure=expand(f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_ranks_structure.csv.gz",
-                   dataset=DATASETS, repr=REPRESENTATIONS, seed=SEED, fold=range(FOLDS)),
-        tc_file=expand(f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_tc.csv.gz",
-                   dataset=DATASETS, repr=REPRESENTATIONS, seed=SEED, fold=range(FOLDS)),
-        unique_masses_file=expand(f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_unique_masses.csv",
-                    dataset=DATASETS, repr=REPRESENTATIONS, seed=SEED, fold=range(FOLDS)),
-        processed_file=expand(f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_processed_{{metric}}.csv", dataset=DATASETS, repr=REPRESENTATIONS, metric=METRICS)
+        ranks_file_formula=expand(f"{OUTPUT_DIR}/prior/structural_prior/{DATASET}_{{repr}}_{{fold}}_{{seed}}_CV_ranks_formula.csv.gz",
+                       repr=REPRESENTATIONS, seed=SEEDS, fold=range(FOLDS)),
+        ranks_file_structure=expand(f"{OUTPUT_DIR}/prior/structural_prior/{DATASET}_{{repr}}_{{fold}}_{{seed}}_CV_ranks_structure.csv.gz",
+                   repr=REPRESENTATIONS, seed=SEEDS, fold=range(FOLDS)),
+        tc_file=expand(f"{OUTPUT_DIR}/prior/structural_prior/{DATASET}_{{repr}}_{{fold}}_{{seed}}_CV_tc.csv.gz",
+                   repr=REPRESENTATIONS, seed=SEEDS, fold=range(FOLDS)),
+        unique_masses_file=expand(f"{OUTPUT_DIR}/prior/samples/{DATASET}_{{repr}}_{{fold}}_unique_masses.csv",
+                    repr=REPRESENTATIONS, seed=SEEDS, fold=range(FOLDS)),
+        processed_file=expand(f"{OUTPUT_DIR}/prior/samples/{DATASET}_{{repr}}_processed_{{metric}}.csv", repr=REPRESENTATIONS, metric=METRICS)
 
 rule preprocess:
     input:
-        f"{DATASETS_FOLDER}/{{dataset}}.txt"
+        f"{config['dataset']}"
     output:
         f"{OUTPUT_DIR}/prior/raw/{{dataset}}.txt"
     resources:
@@ -55,9 +51,9 @@ rule create_training_sets:
     input:
         f"{OUTPUT_DIR}/prior/raw/{{dataset}}.txt"
     output:
-        train_file = f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi",
-        vocab_file = f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.vocabulary",
-        test_file = f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi"
+        train_file = f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.smi",
+        vocab_file = f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.vocabulary",
+        test_file = f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.smi"
     resources:
         mem_mb=20000,
         runtime=10,
@@ -75,15 +71,14 @@ rule create_training_sets:
 
 
 rule train_models_RNN:
-    # TODO: Train |seed| different models on the folds.
     input:
-        input_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi",
-        vocab_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.vocabulary"
+        input_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.smi",
+        vocab_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.vocabulary"
     output:
-        smiles_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_SMILES.smi",
-        model_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_model.pt",
-        loss_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_loss.csv",
-        time_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_timing.csv"
+        smiles_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_SMILES.smi",
+        model_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_model.pt",
+        loss_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_loss.csv",
+        time_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_timing.csv"
     resources:
         mem_mb=32000,
         runtime=MODEL_PARAMS["max_epochs"]*120,
@@ -118,13 +113,13 @@ rule train_models_RNN:
 
 rule sample_molecules_RNN:
     input:
-        input_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_SMILES.smi",
-        vocab_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.vocabulary",
-        model_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_model.pt",
-        check_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_timing.csv"
+        input_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_SMILES.smi",
+        vocab_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.vocabulary",
+        model_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_model.pt",
+        check_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_timing.csv"
     output:
-        output_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1.csv",
-        time_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_timing_1.csv"
+        output_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_sample_1.csv",
+        time_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_timing_1.csv"
     resources:
         mem_mb=1000,
         runtime=MODEL_PARAMS["sample_mols"]//10000,
@@ -156,10 +151,10 @@ rule sample_molecules_RNN:
 
 rule tabulate_molecules:
     input:
-        input_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1.csv",
-        train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi",
+        input_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_sample_1.csv",
+        train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.smi",
     output:
-        output_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1_masses.csv",
+        output_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_sample_1_masses.csv",
     resources:
         mem_mb=4000,
         runtime=MODEL_PARAMS["sample_mols"]//1000,
@@ -173,7 +168,7 @@ rule tabulate_molecules:
 
 rule collect_tabulated_molecules:
     input:
-        input_files=expand(f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1_masses.csv", seed=SEED, allow_missing=True)
+        input_files=expand(f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_sample_1_masses.csv", seed=SEEDS, allow_missing=True)
     output:
         output_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_unique_masses.csv",
     resources:
@@ -187,12 +182,12 @@ rule collect_tabulated_molecules:
 
 rule process_tabulated_molecules:
     input:
-        input_file=expand(f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_unique_masses.csv", dataset=DATASETS, repr=REPRESENTATIONS, fold=range(FOLDS)),
-        cv_file=expand(f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi", dataset=DATASETS, repr=REPRESENTATIONS, seed=SEED, fold=range(FOLDS))
+        input_file=expand(f"{OUTPUT_DIR}/prior/samples/{DATASET}_{{repr}}_{{fold}}_unique_masses.csv", repr=REPRESENTATIONS, fold=range(FOLDS)),
+        cv_file=expand(f"{OUTPUT_DIR}/prior/inputs/train_{DATASET}_{{repr}}_{{fold}}_{{seed}}.smi", repr=REPRESENTATIONS, seed=SEEDS, fold=range(FOLDS))
     params:
         summary_fn=lambda wildcards, output: os.path.splitext(os.path.basename(output.output_file[0]))[0].split('_')[-1]
     output:
-        output_file=expand(f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_processed_{{metric}}.csv", dataset=DATASETS, repr=REPRESENTATIONS, allow_missing=True),
+        output_file=expand(f"{OUTPUT_DIR}/prior/samples/{DATASET}_{{repr}}_processed_{{metric}}.csv", repr=REPRESENTATIONS, allow_missing=True),
     resources:
         mem_mb=4000,
         runtime=MODEL_PARAMS["sample_mols"]//1000,
@@ -216,17 +211,16 @@ rule write_structural_prior_CV:
     "rank" of each training smile. Lower ranks indicate a better model.
     """
     input:
-        train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi",
-        test_file=f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi",
-        pubchem_file=config['pubchem_gz_file'],
-        sample_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1_masses.csv"
+        train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.smi",
+        test_file=f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.smi",
+        pubchem_file=config['pubchem_tsv_file'],
+        sample_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_sample_1_masses.csv"
     output:
-         ranks_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_ranks_structure.csv.gz",
-         tc_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_tc.csv.gz"
+         ranks_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_CV_ranks_structure.csv.gz",
+         tc_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_CV_tc.csv.gz"
     resources:
         mem_mb=32000,
         runtime=180,
-    benchmark: "benchmark/structural_prior_{dataset}_{repr}_{seed}_{fold}.txt"
     shell:
         'python ../python/inner-write-structural-prior-CV.py '
         '--sample_idx {wildcards.seed} '
@@ -240,26 +234,17 @@ rule write_structural_prior_CV:
         '--err_ppm {ERR_PPM} '
 
 
-rule summarize_structural_prior_CV:
-    """
-    For each seed, summarize structural prior information across all folds.
-    We want to see what % of molecules in each of
-      {generative_model, pubchem, training_set}
-    fall within the top k (k = 1..30 in figure 6) in terms of rank.
-    """
-
 rule write_formula_prior_CV:
     input:
-        train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi",
-        test_file=f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}.smi",
-        pubchem_file=config['pubchem_gz_file'],
-        sample_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_sample_1_masses.csv"
+        train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.smi",
+        test_file=f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.smi",
+        pubchem_file=config['pubchem_tsv_file'],
+        sample_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_sample_1_masses.csv"
     output:
-         ranks_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_seed{{seed}}_{{fold}}_CV_ranks_formula.csv.gz"
+         ranks_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_CV_ranks_formula.csv.gz"
     resources:
         mem_mb=32000,
         runtime=180,
-    benchmark: "benchmark/formula_prior_{dataset}_{repr}_{seed}_{fold}.txt"
     shell:
         'python ../python/inner-write-formula-prior-CV.py '
         '--output_dir {OUTPUT_DIR}/prior/structural_prior '

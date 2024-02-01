@@ -25,6 +25,7 @@
   },
 
   "metrics": ["freq-avg", "freq-sum", "fp10k"],
+  "top_k": 30,
 
   "err_ppm": 10,
   "pubchem_gz_file": "/path/to/PubChem.tsv.gz",

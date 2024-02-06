@@ -1,6 +1,7 @@
 import deepsmiles
 import numpy as np
 import os
+import os.path
 import pandas as pd
 import random
 import re
@@ -278,7 +279,7 @@ def write_smiles(smiles, smiles_file, mode='w'):
     """
     Write a list of SMILES to a line-delimited file.
     """
-    # write sampled SMILES
+    os.makedirs(os.path.dirname(smiles_file), exist_ok=True)
     with open(smiles_file, mode) as f:
         for sm in smiles:
             _ = f.write(sm + '\n')

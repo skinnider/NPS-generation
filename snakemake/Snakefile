@@ -14,6 +14,11 @@ ERR_PPM = config['err_ppm']
 
 shell.executable("/bin/bash")
 
+wildcard_constraints:
+    dataset=DATASET,
+    repr='|'.join(REPRESENTATIONS),
+    fold='\d+',
+    seed='\d+'
 
 # -----------------------------------------------------------------------------
 
@@ -22,17 +27,21 @@ shell.executable("/bin/bash")
 # -----------------------------------------------------------------------------
 rule all:
     input:
-        ranks_file_formula=expand(f"{OUTPUT_DIR}/prior/structural_prior/{DATASET}_{{repr}}_{{fold}}_{{seed}}_CV_ranks_formula.csv.gz",
-                       repr=REPRESENTATIONS, seed=SEEDS, fold=range(FOLDS)),
-        ranks_file_structure=expand(f"{OUTPUT_DIR}/prior/structural_prior/{DATASET}_{{repr}}_{{fold}}_{{seed}}_CV_ranks_structure.csv.gz",
-                   repr=REPRESENTATIONS, seed=SEEDS, fold=range(FOLDS)),
-        tc_file=expand(f"{OUTPUT_DIR}/prior/structural_prior/{DATASET}_{{repr}}_{{fold}}_{{seed}}_CV_tc.csv.gz",
-                   repr=REPRESENTATIONS, seed=SEEDS, fold=range(FOLDS)),
-        unique_masses_file=expand(f"{OUTPUT_DIR}/prior/samples/{DATASET}_{{repr}}_{{fold}}_unique_masses.csv",
-                    repr=REPRESENTATIONS, seed=SEEDS, fold=range(FOLDS)),
-        processed_file=expand(f"{OUTPUT_DIR}/prior/samples/{DATASET}_{{repr}}_processed_{{metric}}.csv", repr=REPRESENTATIONS, metric=METRICS)
+        output_file=expand(f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_processed_{{metric}}.csv", dataset=DATASET, repr=REPRESENTATIONS, metric=METRICS),
+        ranks_file_formula=expand(f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_{{fold}}_CV_ranks_formula.csv.gz",
+                       dataset=DATASET, repr=REPRESENTATIONS, seed=SEEDS, fold=range(FOLDS)),
+        ranks_file_structure=expand(f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_{{fold}}_CV_ranks_structure.csv.gz",
+                   dataset=DATASET, repr=REPRESENTATIONS, seed=SEEDS, fold=range(FOLDS)),
+        tc_file=expand(f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_{{fold}}_CV_tc.csv.gz",
+                   dataset=DATASET, repr=REPRESENTATIONS, seed=SEEDS, fold=range(FOLDS))
 
 rule preprocess:
+    """
+    Read input smiles and save a file of "canonical" smiles. This entails:
+    Conversion to molecules using rdkit, removing light fragments,
+    neutralizing charges, filtering for valid elements
+    removing rare tokens in the smiles vocabulary.
+    """
     input:
         f"{config['dataset']}"
     output:
@@ -48,12 +57,18 @@ rule preprocess:
 
 
 rule create_training_sets:
+    """
+    Split input smiles into separate files for train/test folds,
+    while also creating a .vocabulary files for the training smiles.
+    Optionally takes in a min_tc parameter to only consider smiles that
+    are similar to a randomly selected seed smile.
+    """
     input:
         f"{OUTPUT_DIR}/prior/raw/{{dataset}}.txt"
     output:
-        train_file = f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.smi",
-        vocab_file = f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.vocabulary",
-        test_file = f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.smi"
+        train_file = f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}.smi",
+        vocab_file = f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}.vocabulary",
+        test_file = f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_{{fold}}.smi"
     resources:
         mem_mb=20000,
         runtime=10,
@@ -66,19 +81,23 @@ rule create_training_sets:
         '--enum-factor {MODEL_PARAMS[enum_factor]} '
         '--folds {FOLDS} '
         '--representation {wildcards.repr} '
-        '--seed {wildcards.seed} '
+        '--min-tc 0 '
         '--max-input-smiles {config[max_input_smiles]} '
 
 
 rule train_models_RNN:
+    """
+    Train |seed| RNN models on an input fold.
+    Each training fold is internally split into train/validation split of 0.9.
+    Write out the model file and loss file. Optionally sample a small set of
+    smiles and write them out to `smiles_file`.
+    """
     input:
-        input_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.smi",
-        vocab_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.vocabulary"
+        input_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}.smi",
+        vocab_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}.vocabulary"
     output:
-        smiles_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_SMILES.smi",
         model_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_model.pt",
-        loss_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_loss.csv",
-        time_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_timing.csv"
+        loss_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_loss.csv"
     resources:
         mem_mb=32000,
         runtime=MODEL_PARAMS["max_epochs"]*120,
@@ -88,9 +107,8 @@ rule train_models_RNN:
             '--database {wildcards.dataset} '
             '--representation {wildcards.repr} '
             '--enum_factor {MODEL_PARAMS[enum_factor]} '
-            '--n_molecules {MODEL_PARAMS[n_molecules]} '
             '--min_tc {MODEL_PARAMS[min_tc]} '
-            '--sample_idx {wildcards.seed} '
+            '--seed {wildcards.seed} '
             '--rnn_type {MODEL_PARAMS[rnn_type]} '
             '--embedding_size {MODEL_PARAMS[embedding_size]} '
             '--hidden_size {MODEL_PARAMS[hidden_size]} '
@@ -105,21 +123,20 @@ rule train_models_RNN:
             '--sample_mols {MODEL_PARAMS[sample_mols]} '
             '--input_file {input.input_file} '
             '--vocab_file {input.vocab_file} '
-            '--smiles_file {output.smiles_file} '
             '--model_file {output.model_file} '
             '--loss_file {output.loss_file} '
-            '--time_file {output.time_file} '
 
 
 rule sample_molecules_RNN:
+    """
+    Sample `sample_mols` smiles from a trained model and fole, and save to
+    `output_file`. Each line of `output_file` is (<mass>, <smile>).
+    """
     input:
-        input_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_SMILES.smi",
-        vocab_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.vocabulary",
-        model_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_model.pt",
-        check_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_timing.csv"
+        vocab_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}.vocabulary",
+        model_file=f"{OUTPUT_DIR}/prior/models/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_model.pt"
     output:
-        output_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_sample_1.csv",
-        time_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_timing_1.csv"
+        output_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_samples.csv"
     resources:
         mem_mb=1000,
         runtime=MODEL_PARAMS["sample_mols"]//10000,
@@ -129,9 +146,7 @@ rule sample_molecules_RNN:
         '--database {wildcards.dataset} '
         '--representation {wildcards.repr} '
         '--enum_factor {MODEL_PARAMS[enum_factor]} '
-        '--n_molecules {MODEL_PARAMS[n_molecules]} '
         '--min_tc {MODEL_PARAMS[min_tc]} '
-        '--sample_idx {wildcards.seed} '
         '--rnn_type {MODEL_PARAMS[rnn_type]} '
         '--embedding_size {MODEL_PARAMS[embedding_size]} '
         '--hidden_size {MODEL_PARAMS[hidden_size]} '
@@ -139,22 +154,22 @@ rule sample_molecules_RNN:
         '--dropout {MODEL_PARAMS[dropout]} '
         '--batch_size {MODEL_PARAMS[batch_size]} '
         '--learning_rate {MODEL_PARAMS[learning_rate]} '
-        '--mol_sample_idx {wildcards.seed} '
         '--sample_mols {MODEL_PARAMS[sample_mols]} '
-        '--input_file {input.input_file} '
         '--vocab_file {input.vocab_file} '
         '--model_file {input.model_file} '
-        '--check_file {input.check_file} '
         '--output_file {output.output_file} '
-        '--time_file {output.time_file} '
 
 
 rule tabulate_molecules:
+    """
+    For sampled smiles from a model and a fold, add mass, formula and sampling
+    frequency. Filter out smiles that are found in `train_file`.
+    """
     input:
-        input_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_sample_1.csv",
-        train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.smi",
+        input_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_samples.csv",
+        train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}.smi",
     output:
-        output_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_sample_1_masses.csv",
+        output_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_samples_masses.csv",
     resources:
         mem_mb=4000,
         runtime=MODEL_PARAMS["sample_mols"]//1000,
@@ -167,8 +182,12 @@ rule tabulate_molecules:
 
 
 rule collect_tabulated_molecules:
+    """
+    Aggregate sampled smiles from all models run on a fold, adding
+    sampling frequency in the process.
+    """
     input:
-        input_files=expand(f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_sample_1_masses.csv", seed=SEEDS, allow_missing=True)
+        input_files=expand(f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_samples_masses.csv", seed=SEEDS, allow_missing=True)
     output:
         output_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_unique_masses.csv",
     resources:
@@ -181,13 +200,17 @@ rule collect_tabulated_molecules:
 
 
 rule process_tabulated_molecules:
+    """
+    Aggregate sampled smiles across all folds, calculating metrics like
+    average sampling frequency (if metric=freq-avg), freq-sum etc.
+    Smiles found in training data (i.e. in `cv_file`) are not counted towards
+    the aggregated metric.
+    """
     input:
-        input_file=expand(f"{OUTPUT_DIR}/prior/samples/{DATASET}_{{repr}}_{{fold}}_unique_masses.csv", repr=REPRESENTATIONS, fold=range(FOLDS)),
-        cv_file=expand(f"{OUTPUT_DIR}/prior/inputs/train_{DATASET}_{{repr}}_{{fold}}_{{seed}}.smi", repr=REPRESENTATIONS, seed=SEEDS, fold=range(FOLDS))
-    params:
-        summary_fn=lambda wildcards, output: os.path.splitext(os.path.basename(output.output_file[0]))[0].split('_')[-1]
+        input_file=expand(f"{OUTPUT_DIR}/prior/samples/{DATASET}_{{repr}}_{{fold}}_unique_masses.csv", fold=range(FOLDS), allow_missing=True),
+        cv_file=expand(f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}.smi", fold=range(FOLDS), allow_missing=True)
     output:
-        output_file=expand(f"{OUTPUT_DIR}/prior/samples/{DATASET}_{{repr}}_processed_{{metric}}.csv", repr=REPRESENTATIONS, allow_missing=True),
+        output_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_processed_{{metric}}.csv",
     resources:
         mem_mb=4000,
         runtime=MODEL_PARAMS["sample_mols"]//1000,
@@ -196,34 +219,40 @@ rule process_tabulated_molecules:
         '--input_file {input.input_file} '
         '--cv_file {input.cv_file} '
         '--output_file {output.output_file} '
-        '--summary_fn {params.summary_fn} '
+        '--summary_fn {wildcards.metric} '
 
 
 rule write_structural_prior_CV:
     """
-    For each seed, generate structural prior information across all seeds
-    and across all folds.
-    For all given training smiles, we keep track of smiles generated by the
-    model (and also pubchem, as a baseline) that fall within some
-    tolerance of the (correct) molecular weight. When sorted by decreasing
+    Evaluate test smiles against the trained models, with PubChem as a baseline.
+    
+    For each fold, for each smile in the test dataset, generate statistics for
+    the occurrence of the test smile in each of the 3 "models":
+      <trained_smiles>/<sampled_smiles>/PubChem.
+    
+    For each of the 3 "models", keep track of smiles that fall within some
+    tolerance of the true test-smile molecular weight. When sorted by decreasing
     sampling frequency, the rank at which we find the "correct" smile
-    (in terms of fingerprint similarity to the training molecule), gives us the
-    "rank" of each training smile. Lower ranks indicate a better model.
+    (in terms of a match in the smile string), gives us the
+    "rank" of each test smile. Lower ranks indicate a better model.
+    
+    This output is written to `ranks_file`.
+    
+    Fingerprint similarity values are written out to `tc_file`.
     """
     input:
-        train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.smi",
-        test_file=f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.smi",
+        train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}.smi",
+        test_file=f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_{{fold}}.smi",
         pubchem_file=config['pubchem_tsv_file'],
-        sample_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_sample_1_masses.csv"
+        sample_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_unique_masses.csv"
     output:
-         ranks_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_CV_ranks_structure.csv.gz",
-         tc_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_CV_tc.csv.gz"
+         ranks_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_{{fold}}_CV_ranks_structure.csv.gz",
+         tc_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_{{fold}}_CV_tc.csv.gz"
     resources:
         mem_mb=32000,
         runtime=180,
     shell:
         'python ../python/inner-write-structural-prior-CV.py '
-        '--sample_idx {wildcards.seed} '
         '--output_dir {OUTPUT_DIR}/prior/structural_prior/ '
         '--ranks_file {output.ranks_file} '
         '--tc_file {output.tc_file} '
@@ -235,13 +264,31 @@ rule write_structural_prior_CV:
 
 
 rule write_formula_prior_CV:
+    """
+    NOTE: Analogous to `write_structural_prior_CV`, but "correctness" is based
+    on a matching formula, not a matching smile. Read on for full details.
+    
+    Evaluate test smiles against the trained models, with PubChem as a baseline.
+
+    For each fold, for each smile in the test dataset, generate statistics for
+    the occurrence of the test smile in each of the 3 "models":
+      <trained_smiles>/<sampled_smiles>/PubChem.
+
+    For each of the 3 "models", keep track of smiles that fall within some
+    tolerance of the true test-smile molecular weight. When sorted by decreasing
+    sampling frequency, the rank at which we find the "correct" smile
+    (in terms of the correct formula), gives us the
+    "rank" of each test smile. Lower ranks indicate a better model.
+    
+    This output is written to `ranks_file`.
+    """
     input:
-        train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.smi",
-        test_file=f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_{{fold}}_{{seed}}.smi",
+        train_file=f"{OUTPUT_DIR}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}.smi",
+        test_file=f"{OUTPUT_DIR}/prior/inputs/test_{{dataset}}_{{repr}}_{{fold}}.smi",
         pubchem_file=config['pubchem_tsv_file'],
-        sample_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_sample_1_masses.csv"
+        sample_file=f"{OUTPUT_DIR}/prior/samples/{{dataset}}_{{repr}}_{{fold}}_unique_masses.csv"
     output:
-         ranks_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_{{fold}}_{{seed}}_CV_ranks_formula.csv.gz"
+         ranks_file=f"{OUTPUT_DIR}/prior/structural_prior/{{dataset}}_{{repr}}_{{fold}}_CV_ranks_formula.csv.gz"
     resources:
         mem_mb=32000,
         runtime=180,

@@ -5,7 +5,6 @@ import pandas as pd
 from rdkit.Chem import Descriptors, rdMolDescriptors
 from tqdm import tqdm
 
-# import functions
 from functions import clean_mol, clean_mols, read_smiles
 
 # suppress rdkit errors
@@ -21,13 +20,13 @@ parser.add_argument('--test_file', type=str)
 parser.add_argument('--pubchem_file', type=str)
 parser.add_argument('--sample_file', type=str)
 parser.add_argument('--err_ppm', type=int)
+parser.add_argument('--chunk_size', type=int, default=100000)
 
 # parse all arguments
 args = parser.parse_args()
 print(args)
 
-if not os.path.isdir(args.output_dir):
-    os.makedirs(args.output_dir)
+os.makedirs(args.output_dir, exist_ok=True)
 
 # read training and test sets
 all_train_smiles = read_smiles(args.train_file)
@@ -67,13 +66,13 @@ test = test.assign(formula_known=test['formula'].isin(train_fmlas))
 # assign frequencies as NAs
 train = train.assign(size=np.nan)
 
-# read PubChem file
+print('Reading PubChem file')
 pubchem = pd.read_csv(args.pubchem_file, delimiter='\t', header=None,
                       names=['smiles', 'mass', 'formula'])
 # assign frequencies as NAs
 pubchem = pubchem.assign(size=np.nan)
 
-# read sample file from the generative model
+print('Reading sample file from generative model')
 gen = pd.read_csv(args.sample_file)
 
 # set up outputs
@@ -86,6 +85,7 @@ inputs = {'model': gen.assign(source='model'),
 
 # match on formula and mass
 for key, query in inputs.items():
+    print(f'Generating statistics for model {key}')
     for row in tqdm(test.itertuples(), total=test.shape[0]):
         # get formula and exact mass
         query_mol = clean_mol(row.smiles)

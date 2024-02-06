@@ -4,14 +4,10 @@ Sample generated molecules from a trained chemical language model.
 
 import argparse
 import os
-import pandas as pd
-import sys
-import time
+import os.path
 import torch
 from tqdm import tqdm
 
-
-# import classes and functions
 from datasets import Vocabulary, SelfiesDataset
 from models import RNN
 from functions import read_smiles
@@ -22,9 +18,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--database', type=str)
 parser.add_argument('--representation', type=str)
 parser.add_argument('--enum_factor', type=int)
-parser.add_argument('--n_molecules', type=int)
 parser.add_argument('--min_tc', type=int)
-parser.add_argument('--sample_idx', type=int)
 parser.add_argument('--rnn_type', type=str)
 parser.add_argument('--embedding_size', type=int)
 parser.add_argument('--hidden_size', type=int)
@@ -32,35 +26,23 @@ parser.add_argument('--n_layers', type=int)
 parser.add_argument('--dropout', type=int)
 parser.add_argument('--batch_size', type=int)
 parser.add_argument('--learning_rate', type=float)
-parser.add_argument('--mol_sample_idx', type=int)
 parser.add_argument('--sample_mols', type=int)
-parser.add_argument('--input_file', type=str)
+parser.add_argument('--input_file', type=str, default=None)
 parser.add_argument('--vocab_file', type=str)
 parser.add_argument('--model_file', type=str)
-parser.add_argument('--check_file', type=str)
 parser.add_argument('--output_file', type=str)
 parser.add_argument('--time_file', type=str)
-parser.add_argument('--nvstat_file', type=str)
 
 
 # parse all arguments
 args = parser.parse_args()
 print(args)
 
-# create output directory if it does not exist
-output_dir = os.path.dirname(args.output_file)
-if not os.path.isdir(output_dir):
-    try:
-        os.makedirs(output_dir)
-    except FileExistsError:
-        pass
+os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
 
 # detect device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('cuda: {}'.format(torch.cuda.is_available()))
-
-# start the timer
-start_time = time.time()
 
 # load vocabulary
 if args.representation == 'SELFIES':
@@ -88,8 +70,6 @@ else:
 
 model.eval() ## enable evaluation mode
 
-# another tick
-sample_start_time = time.time()
 
 # wipe the file before writing
 open(args.output_file, 'w').close()
@@ -105,13 +85,5 @@ with tqdm(total=args.sample_mols) as pbar:
         # write sampled SMILES
         with open(args.output_file, 'a+') as f:
             for loss, sm in zip(losses, sampled_smiles):
-                    _ = f.write(str(round(loss, 4)) + ',' + sm + '\n')
+                f.write(str(round(loss, 4)) + ',' + sm + '\n')
         pbar.update(batch_size)
-
-# write the times
-load_time = sample_start_time - start_time
-sample_time = time.time() - sample_start_time
-total_time = time.time() - start_time
-timing_df = pd.DataFrame({'stage': ['load', 'sample', 'total'],
-                          'time': [load_time, sample_time, total_time]})
-timing_df.to_csv(args.time_file, index=False)

@@ -4,9 +4,8 @@ Train a RNN-based chemical language model on a dataset of known molecules.
 
 import argparse
 import os
+import os.path
 import pandas as pd
-import sys
-import time
 import torch
 from torch.optim import Adam
 from torch.utils.data import DataLoader
@@ -16,7 +15,6 @@ from tqdm import tqdm
 from rdkit import rdBase
 rdBase.DisableLog('rdApp.error')
 
-# import functions
 from datasets import SmilesDataset, SelfiesDataset
 from models import RNN
 from functions import check_arg, read_smiles, write_smiles
@@ -27,9 +25,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--database', type=str)
 parser.add_argument('--representation', type=str)
 parser.add_argument('--enum_factor', type=int)
-parser.add_argument('--n_molecules', type=int)
 parser.add_argument('--min_tc', type=int)
-parser.add_argument('--sample_idx', type=int)
+parser.add_argument('--seed', type=int)
 parser.add_argument('--rnn_type', type=str)
 parser.add_argument('--embedding_size', type=int)
 parser.add_argument('--hidden_size', type=int)
@@ -44,29 +41,21 @@ parser.add_argument('--log_every_epochs', type=int)
 parser.add_argument('--sample_mols', type=int)
 parser.add_argument('--input_file', type=str)
 parser.add_argument('--vocab_file', type=str)
-parser.add_argument('--smiles_file', type=str)
+parser.add_argument('--smiles_file', type=str, default=None)
 parser.add_argument('--model_file', type=str)
 parser.add_argument('--loss_file', type=str)
-parser.add_argument('--time_file', type=str)
 
-# parse all arguments
 args = parser.parse_args()
 print(args)
 
-# create output directory if it does not exist
-output_dir = os.path.dirname(args.smiles_file)
-if not os.path.isdir(output_dir):
-    try:
-        os.makedirs(output_dir)
-    except FileExistsError:
-        pass
+torch.manual_seed(args.seed)
+
+os.makedirs(os.path.dirname(args.model_file), exist_ok=True)
+os.makedirs(os.path.dirname(args.loss_file), exist_ok=True)
 
 # detect device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('cuda: {}'.format(torch.cuda.is_available()))
-
-# start the timer
-start_time = time.time()
 
 # read training set
 inputs = read_smiles(args.input_file)
@@ -98,9 +87,6 @@ optim = Adam(model.parameters(),
              lr=args.learning_rate)
 # set up early stopping
 early_stop = EarlyStopping(patience=args.patience)
-
-# another tick
-train_start_time = time.time()
 
 # iterate over epochs
 counter = 0
@@ -156,30 +142,18 @@ if check_arg(args, 'log_every_epochs') or check_arg(args, 'log_every_steps'):
                         'value': [early_stop.best_loss]})
     row.to_csv(args.loss_file, index=False, mode='a', header=False)
 
-# another tick
-sample_start_time = time.time()
-
 # load the best model
 model.load_state_dict(torch.load(args.model_file))
 model.eval()
 
-# sample a set of SMILES from the final, trained model
-sampled_smiles = []
-with tqdm(total=args.sample_mols) as pbar:
-    while len(sampled_smiles) < args.sample_mols:
-        new_smiles = model.sample(args.batch_size, return_smiles=True)
-        sampled_smiles.extend(new_smiles)
-        pbar.update(len(new_smiles))
+if args.smiles_file is not None:
+    # sample a set of SMILES from the final, trained model
+    sampled_smiles = []
+    with tqdm(total=args.sample_mols) as pbar:
+        while len(sampled_smiles) < args.sample_mols:
+            new_smiles = model.sample(args.batch_size, return_smiles=True)
+            sampled_smiles.extend(new_smiles)
+            pbar.update(len(new_smiles))
 
-# write sampled SMILES
-write_smiles(sampled_smiles, args.smiles_file)
-
-# write the times
-load_time = train_start_time - start_time
-train_time = sample_start_time - train_start_time
-sample_time = time.time() - sample_start_time
-total_time = time.time() - start_time
-timing_df = pd.DataFrame({'stage': ['load', 'train', 'sample', 'total'],
-                          'time': [load_time, train_time, sample_time,
-                                   total_time]})
-timing_df.to_csv(args.time_file, index=False)
+    # write sampled SMILES
+    write_smiles(sampled_smiles, args.smiles_file)

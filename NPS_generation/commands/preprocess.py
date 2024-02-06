@@ -67,8 +67,9 @@ def preprocess(input_file, output_file, max_input_smiles=None, neutralise=True, 
         smiles = list(dict.fromkeys(smiles))
         logger.info('got {} unique canonical SMILES'.format(len(smiles)))
 
-        vocabulary = Vocabulary(smiles=smiles)
         if remove_rare:
+            logger.info(f'Creating vocabulary')
+            vocabulary = Vocabulary(smiles=smiles)
             logger.info(f'Trimming vocabulary of size {len(vocabulary)}')
             n_smiles = len(smiles)
             for token in vocabulary.characters:

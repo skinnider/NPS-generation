@@ -33,12 +33,7 @@ parser.add_argument('--output_file', type=str)
 args = parser.parse_args()
 print(args)
 
-output_dir = os.path.dirname(args.output_file)
-if not os.path.isdir(output_dir):
-    os.makedirs(output_dir)
-
-# tick
-start_time = time.time()
+os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
 
 # read training SMILES
 train_smiles = read_smiles(args.train_file)
@@ -76,12 +71,12 @@ with open(args.input_file, 'r') as f1:
             formula = rdMolDescriptors.CalcMolFormula(mol)
 
             # roundtrip to get canonical smiles
-            canonical_smiles = Chem.MolToSmiles(mol, isomericSmiles=False)
+            canonical_smile = Chem.MolToSmiles(mol, isomericSmiles=False)
 
             # optionally, skip
-            if not canonical_smiles in train_smiles:
+            if not canonical_smile in train_smiles:
                 # append to file
-                row = "\t".join([canonical_smiles, str(mass), formula])
+                row = "\t".join([canonical_smile, str(mass), formula])
                 _ = f2.write(row + '\n')
                 f2.flush()
         except ValueError:

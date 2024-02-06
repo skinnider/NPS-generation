@@ -6,7 +6,6 @@ from rdkit.Chem import AllChem, Descriptors, rdMolDescriptors
 from rdkit.DataStructs import FingerprintSimilarity
 from tqdm import tqdm
 
-# import functions
 from functions import clean_mol, clean_mols, get_ecfp6_fingerprints, \
     read_smiles
 
@@ -16,7 +15,6 @@ rdBase.DisableLog('rdApp.error')
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--sample_idx', type=int)
 parser.add_argument('--output_dir', type=str)
 parser.add_argument('--ranks_file', type=str)
 parser.add_argument('--tc_file', type=str)
@@ -31,8 +29,7 @@ parser.add_argument('--chunk_size', type=int, default=100000)
 args = parser.parse_args()
 print(args)
 
-if not os.path.isdir(args.output_dir):
-    os.makedirs(args.output_dir)
+os.makedirs(args.output_dir, exist_ok=True)
 
 # read training and test sets
 all_train_smiles = read_smiles(args.train_file)
@@ -72,13 +69,13 @@ test = test.assign(formula_known=test['formula'].isin(train_fmlas))
 # assign frequencies as NAs
 train = train.assign(size=np.nan)
 
-# read PubChem file
+print('Reading PubChem file')
 pubchem = pd.read_csv(args.pubchem_file, delimiter='\t', header=None,
                       names=['smiles', 'mass', 'formula'])
 # assign frequencies as NAs
 pubchem = pubchem.assign(size=np.nan)
 
-# read sample file from the generative model
+print('Reading sample file from generative model')
 gen = pd.read_csv(args.sample_file)
 
 # set up outputs
@@ -92,6 +89,7 @@ inputs = {'model': gen.assign(source='model'),
 
 # match on formula and mass
 for key, query in inputs.items():
+    print(f'Generating statistics for model {key}')
     for row in tqdm(test.itertuples(), total=test.shape[0]):
         # get formula and exact mass
         query_mol = clean_mol(row.smiles)

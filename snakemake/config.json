@@ -1,28 +1,28 @@
 {
   "output_dir": "data",
-  "dataset": "/media/vineetb/T7/projects/nps/data/LOTUS.txt",
-  "pubchem_tsv_file": "/media/vineetb/T7/projects/nps/data/PubChem.tsv",
+  "dataset": "/path/to/<dataset>.txt",
+  "pubchem_tsv_file": "/path/to/PubChem.tsv",
 
   "representations": ["SMILES"],
-  "folds": 3,
-  "seeds": [0, 1],
-  "max_input_smiles": 1000,
+  "folds": 10,
+  "seeds": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+  "enum_factors": [0, 10, 30, 50, 100],
+  "max_input_smiles": 0,
 
   "model_params": {
-    "enum_factor": 0,
     "min_tc": 0,
     "rnn_type": "LSTM",
-    "embedding_size": 32,
-    "hidden_size": 256,
+    "embedding_size": 128,
+    "hidden_size": 1024,
     "n_layers": 3,
     "dropout": 0,
     "batch_size": 64,
     "learning_rate": 0.001,
-    "max_epochs": 3,
+    "max_epochs": 99999,
     "patience": 50000,
     "log_every_steps": 100,
     "log_every_epochs":  1,
-    "sample_mols": 100
+    "sample_mols": 10000000
   },
 
   "metrics": ["freq-sum", "freq-avg", "fp10k"],

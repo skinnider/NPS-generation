@@ -13,7 +13,6 @@ rdBase.DisableLog('rdApp.error')
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--output_dir', type=str)
 parser.add_argument('--ranks_file', type=str)
 parser.add_argument('--train_file', type=str)
 parser.add_argument('--test_file', type=str)
@@ -25,8 +24,6 @@ parser.add_argument('--chunk_size', type=int, default=100000)
 # parse all arguments
 args = parser.parse_args()
 print(args)
-
-os.makedirs(args.output_dir, exist_ok=True)
 
 # read training and test sets
 all_train_smiles = read_smiles(args.train_file)
@@ -131,5 +128,6 @@ for key, query in inputs.items():
         rank_df = pd.concat([rank_df, rank_row])
 
 # write to output files
+os.makedirs(os.path.dirname(args.ranks_file), exist_ok=True)
 rank_df.to_csv(args.ranks_file, index=False,
                compression='gzip')

@@ -6,10 +6,10 @@
   "representations": ["SMILES"],
   "folds": 3,
   "seeds": [0, 1],
-  "max_input_smiles": 100,
+  "enum_factors": [0],
+  "max_input_smiles": 1000,
 
   "model_params": {
-    "enum_factor": 0,
     "min_tc": 0,
     "rnn_type": "LSTM",
     "embedding_size": 32,
@@ -22,7 +22,7 @@
     "patience": 50000,
     "log_every_steps": 100,
     "log_every_epochs":  1,
-    "sample_mols": 30
+    "sample_mols": 100
   },
 
   "metrics": ["freq-avg"],

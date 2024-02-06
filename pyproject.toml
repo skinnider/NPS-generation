@@ -22,7 +22,7 @@ dependencies = [
     "numpy",
     "pandas",
     "rdkit",
-    "scipy",
+    "scipy<1.12",
     "selfies",
     "snakemake",
     "torch",

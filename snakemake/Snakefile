@@ -34,7 +34,12 @@ rule all:
         ranks_file_structure=expand(f"{OUTPUT_DIR}/{{enum_factor}}/prior/structural_prior/{{dataset}}_{{repr}}_{{fold}}_CV_ranks_structure.csv.gz",
                    enum_factor=ENUM_FACTORS, dataset=DATASET, repr=REPRESENTATIONS, seed=SEEDS, fold=range(FOLDS)),
         tc_file=expand(f"{OUTPUT_DIR}/{{enum_factor}}/prior/structural_prior/{{dataset}}_{{repr}}_{{fold}}_CV_tc.csv.gz",
-                   enum_factor=ENUM_FACTORS, dataset=DATASET, repr=REPRESENTATIONS, seed=SEEDS, fold=range(FOLDS))
+                   enum_factor=ENUM_FACTORS, dataset=DATASET, repr=REPRESENTATIONS, seed=SEEDS, fold=range(FOLDS)),
+        ranks_file_overall = expand(f"{OUTPUT_DIR}/{{enum_factor}}/prior/structural_prior/{{dataset}}_{{repr}}_all_{{metric}}CV_ranks_structure.csv.gz",
+            enum_factor=ENUM_FACTORS, dataset=DATASET, repr=REPRESENTATIONS, metric=METRICS),
+        tc_file_overall = expand(f"{OUTPUT_DIR}/{{enum_factor}}/prior/structural_prior/{{dataset}}_{{repr}}_all_{{metric}}_CV_tc.csv.gz",
+            enum_factor=ENUM_FACTORS,dataset=DATASET,repr=REPRESENTATIONS,metric=METRICS)
+
 
 rule preprocess:
     """
@@ -84,6 +89,28 @@ rule create_training_sets:
         '--representation {wildcards.repr} '
         '--min-tc 0 '
         '--max-input-smiles {config[max_input_smiles]} '
+
+
+rule collapse_train_test_data:
+    """
+    Generate single files for training and testing smiles respectively, out
+    of all the folds we generated in the `create_training_sets` step. This
+    would of course only be valuable to do if --enum-factor for the
+    `create_training_sets` was > 0, otherwise we might as well use the output
+    file from `preprocess` in both cases.
+    """
+    input:
+        train_file = expand(f"{OUTPUT_DIR}/{{enum_factor}}/prior/inputs/train_{{dataset}}_{{repr}}_{{fold}}.smi", fold=range(FOLDS), allow_missing=True),
+        test_file = expand(f"{OUTPUT_DIR}/{{enum_factor}}/prior/inputs/test_{{dataset}}_{{repr}}_{{fold}}.smi", fold=range(FOLDS), allow_missing=True)
+    output:
+        train_file = f"{OUTPUT_DIR}/{{enum_factor}}/prior/inputs/train_{{dataset}}_{{repr}}_all.smi",
+        test_file = f"{OUTPUT_DIR}/{{enum_factor}}/prior/inputs/test_{{dataset}}_{{repr}}_all.smi"
+    resources:
+        mem_mb=20000,
+        runtime=10,
+    shell:
+        'cat {input.train_file} | sort | uniq > {output.train_file} && '
+        'cat {input.test_file} | sort | uniq > {output.test_file} '
 
 
 rule train_models_RNN:
@@ -204,6 +231,11 @@ rule process_tabulated_molecules:
     average sampling frequency (if metric=freq-avg), freq-sum etc.
     Smiles found in training data (i.e. in `cv_file`) are not counted towards
     the aggregated metric.
+    
+    `output_file` has the same format as the one produced by
+    `collect_tabulated_molecules` (<smile>, <mass>, <formula>, <size>),
+    but now `size` has a different interpretation than simply the frequency
+    of occurrence.
     """
     input:
         input_file=expand(f"{OUTPUT_DIR}/{{enum_factor}}/prior/samples/{DATASET}_{{repr}}_{{fold}}_unique_masses.csv", fold=range(FOLDS), allow_missing=True),
@@ -266,8 +298,6 @@ rule write_formula_prior_CV:
     NOTE: Analogous to `write_structural_prior_CV`, but "correctness" is based
     on a matching formula, not a matching smile. Read on for full details.
     
-    Evaluate test smiles against the trained models, with PubChem as a baseline.
-
     For each fold, for each smile in the test dataset, generate statistics for
     the occurrence of the test smile in each of the 3 "models":
       <trained_smiles>/<sampled_smiles>/PubChem.
@@ -293,6 +323,47 @@ rule write_formula_prior_CV:
     shell:
         'python ../python/inner-write-formula-prior-CV.py '
         '--ranks_file {output.ranks_file} '
+        '--train_file {input.train_file} '
+        '--test_file {input.test_file} '
+        '--pubchem_file {input.pubchem_file} '
+        '--sample_file {input.sample_file} '
+        '--err_ppm {ERR_PPM} '
+
+
+rule write_structural_prior_CV_overall:
+    """
+    How good are the "overall" samplings from all models (across all folds)?
+
+    For each smile in the test dataset, generate statistics for
+    the occurrence of the test smile in each of the 3 "models":
+      <trained_smiles>/<sampled_smiles>/PubChem.
+
+    For each of the 3 "models", keep track of smiles that fall within some
+    tolerance of the true test-smile molecular weight. When sorted by decreasing
+    sampling volume (frequency average or frequency count etc., across all
+    samplings made across all folds), the rank at which we find the "correct"
+    smile (in terms of a match in the smile string), gives us the
+    "rank" of each test smile. Lower ranks indicate a better model.
+
+    This output is written to `ranks_file`.
+
+    Fingerprint similarity values are written out to `tc_file`.
+    """
+    input:
+        train_file=f"{OUTPUT_DIR}/{{enum_factor}}/prior/inputs/train_{{dataset}}_{{repr}}_all.smi",
+        test_file=f"{OUTPUT_DIR}/{{enum_factor}}/prior/inputs/test_{{dataset}}_{{repr}}_all.smi",
+        pubchem_file=config['pubchem_tsv_file'],
+        sample_file=expand(f"{OUTPUT_DIR}/{{enum_factor}}/prior/samples/{{dataset}}_{{repr}}_processed_{{metric}}.csv", metric=METRICS, allow_missing=True)
+    output:
+        ranks_file=f"{OUTPUT_DIR}/{{enum_factor}}/prior/structural_prior/{{dataset}}_{{repr}}_all_{{metric}}CV_ranks_structure.csv.gz",
+        tc_file=f"{OUTPUT_DIR}/{{enum_factor}}/prior/structural_prior/{{dataset}}_{{repr}}_all_{{metric}}_CV_tc.csv.gz"
+    resources:
+        mem_mb=32000,
+        runtime=180,
+    shell:
+        'python ../python/inner-write-structural-prior-CV.py '
+        '--ranks_file {output.ranks_file} '
+        '--tc_file {output.tc_file} '
         '--train_file {input.train_file} '
         '--test_file {input.test_file} '
         '--pubchem_file {input.pubchem_file} '

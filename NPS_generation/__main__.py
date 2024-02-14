@@ -2,7 +2,7 @@ import logging
 import argparse
 import os
 import NPS_generation
-from NPS_generation.commands import preprocess, create_training_sets
+from NPS_generation.commands import preprocess, create_training_sets, inner_train_models_RNN
 
 
 logger = logging.getLogger("NPS_generation")
@@ -12,7 +12,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", action="version", version=NPS_generation.__version__)
 
-    modules = (preprocess, create_training_sets)
+    modules = (preprocess, create_training_sets, inner_train_models_RNN)
 
     subparsers = parser.add_subparsers(title="Choose a command")
     subparsers.required = True

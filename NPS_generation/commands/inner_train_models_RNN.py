@@ -117,12 +117,11 @@ def train_models_RNN(database, representation, seed, rnn_type, embedding_size, h
             validation_loss = model.loss(validation).detach()
 
             # print update and write training schedule?
-            if check_arg(args, 'log_every_steps'):
-                if counter % log_every_steps == 0:
-                    track_loss(loss_file, epoch, counter,
-                               loss.item(), validation_loss.item())
-                    print_update(model, epoch, batch_idx + 1, loss.item(),
-                                 validation_loss.item())
+            if counter % log_every_steps == 0:
+                track_loss(loss_file, epoch, counter,
+                           loss.item(), validation_loss.item())
+                print_update(model, epoch, batch_idx + 1, loss.item(),
+                             validation_loss.item())
 
             # check early stopping
             early_stop(validation_loss.item(), model, model_file, counter)

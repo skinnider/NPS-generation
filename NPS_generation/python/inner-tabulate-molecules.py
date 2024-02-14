@@ -16,7 +16,7 @@ from rdkit import Chem
 from rdkit.Chem import Descriptors, rdMolDescriptors
 
 # import functions
-from functions import clean_mol, read_smiles
+from NPS_generation.python.functions import clean_mol, read_smiles
 
 # suppress rdkit errors
 from rdkit import rdBase

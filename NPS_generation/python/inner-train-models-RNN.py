@@ -16,10 +16,10 @@ from rdkit import rdBase
 
 rdBase.DisableLog('rdApp.error')
 
-from datasets import SmilesDataset, SelfiesDataset
-from models import RNN
-from functions import check_arg, read_smiles, write_smiles
-from loggers import EarlyStopping, track_loss, print_update
+from NPS_generation.python.datasets import SmilesDataset, SelfiesDataset
+from NPS_generation.python.models import RNN
+from NPS_generation.python.functions import check_arg, read_smiles, write_smiles
+from NPS_generation.python.loggers import EarlyStopping, track_loss, print_update
 from NPS_generation.functions import set_seed, seed_type
 
 

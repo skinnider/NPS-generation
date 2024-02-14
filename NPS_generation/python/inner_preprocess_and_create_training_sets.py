@@ -17,10 +17,10 @@ from selfies.exceptions import EncoderError
 from tqdm import tqdm
 
 # import functions
-from functions import read_smiles, write_smiles, clean_mols, \
+from NPS_generation.python.functions import read_smiles, write_smiles, clean_mols, \
     remove_salts_solvents, NeutraliseCharges
-from datasets import Vocabulary, SelfiesVocabulary
-from util.SmilesEnumerator import SmilesEnumerator
+from NPS_generation.python.datasets import Vocabulary, SelfiesVocabulary
+from NPS_generation.python.util.SmilesEnumerator import SmilesEnumerator
 
 
 def add_args(parser):

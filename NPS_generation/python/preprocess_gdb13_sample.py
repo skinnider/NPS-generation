@@ -16,10 +16,10 @@ os.chdir(python_dir)
 sys.path.append(python_dir)
 
 # import functions
-from functions import write_smiles, clean_mols, remove_salts_solvents, \
+from NPS_generation.python.functions import write_smiles, clean_mols, remove_salts_solvents, \
     NeutraliseCharges
-from datasets import Vocabulary, SelfiesVocabulary
-from util.SmilesEnumerator import SmilesEnumerator
+from NPS_generation.python.datasets import Vocabulary, SelfiesVocabulary
+from NPS_generation.python.util.SmilesEnumerator import SmilesEnumerator
 
 ### dynamically build CLI
 parser = argparse.ArgumentParser()

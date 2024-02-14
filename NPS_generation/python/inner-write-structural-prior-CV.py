@@ -6,7 +6,7 @@ from rdkit.Chem import AllChem, Descriptors, rdMolDescriptors
 from rdkit.DataStructs import FingerprintSimilarity
 from tqdm import tqdm
 
-from functions import clean_mol, clean_mols, get_ecfp6_fingerprints, \
+from NPS_generation.python.functions import clean_mol, clean_mols, get_ecfp6_fingerprints, \
     read_smiles
 from NPS_generation.functions import set_seed, seed_type
 

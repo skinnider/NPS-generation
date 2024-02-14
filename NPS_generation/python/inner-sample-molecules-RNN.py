@@ -7,9 +7,9 @@ import os.path
 import torch
 from tqdm import tqdm
 
-from datasets import Vocabulary, SelfiesDataset
-from models import RNN
-from functions import read_smiles
+from NPS_generation.python.datasets import Vocabulary, SelfiesDataset
+from NPS_generation.python.models import RNN
+from NPS_generation.python.functions import read_smiles
 from NPS_generation.functions import set_seed, seed_type
 
 

@@ -134,7 +134,7 @@ rule train_models_RNN:
         runtime=MODEL_PARAMS["max_epochs"]*120,
         slurm_extra="--gres=gpu:1"
     shell:
-            'python ../NPS_generation/python/inner_train_models_RNN.py '
+            'nps inner_train_models_RNN '
             '--database {wildcards.dataset} '
             '--representation {wildcards.repr} '
             '--seed {wildcards.seed} '

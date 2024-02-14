@@ -18,7 +18,7 @@ python_dir = git_dir + "/python"
 os.chdir(python_dir)
 sys.path.append(python_dir)
 
-from datasets import Vocabulary, SelfiesVocabulary
+from NPS_generation.python.datasets import Vocabulary, SelfiesVocabulary
 
 ### dynamically build CLI
 parser = argparse.ArgumentParser()

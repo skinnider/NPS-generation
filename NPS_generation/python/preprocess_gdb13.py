@@ -9,7 +9,7 @@ from rdkit import Chem
 
 
 # import functions
-from functions import clean_mol, remove_salts_solvents, NeutraliseCharges
+from NPS_generation.python.functions import clean_mol, remove_salts_solvents, NeutraliseCharges
 
 def add_args(parser):
     parser = argparse.ArgumentParser()

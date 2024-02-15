@@ -11,18 +11,19 @@ from scipy import histogram
 from scipy.stats import gaussian_kde
 from scipy.spatial.distance import jensenshannon
 
-def clean_mol(smiles, representation='SMILES', stereochem=False):
+
+def clean_mol(smiles, representation="SMILES", stereochem=False):
     """
     Construct a molecule from a SMILES string, removing stereochemistry and
     explicit hydrogens, and setting aromaticity.
     """
-    if smiles != smiles: ## nan
+    if smiles != smiles:  ## nan
         return None
-    
-    if representation == 'SELFIES':
-        selfies = smiles.replace('<PAD>', '[nop]')
+
+    if representation == "SELFIES":
+        selfies = smiles.replace("<PAD>", "[nop]")
         smiles = decoder(selfies)
-    
+
     mol = Chem.MolFromSmiles(str(smiles))
     if mol is None:
         raise ValueError("invalid SMILES: " + str(smiles))
@@ -32,7 +33,10 @@ def clean_mol(smiles, representation='SMILES', stereochem=False):
     mol = Chem.RemoveHs(mol)
     return mol
 
-def clean_mols(all_smiles, representation='SMILES', stereochem=False, disable_progress=False):
+
+def clean_mols(
+    all_smiles, representation="SMILES", stereochem=False, disable_progress=False
+):
     """
     Construct a list of molecules from a list of SMILES strings, replacing
     invalid molecules with None in the list.
@@ -46,6 +50,7 @@ def clean_mols(all_smiles, representation='SMILES', stereochem=False, disable_pr
             mols.append(None)
     return mols
 
+
 def remove_salts_solvents(mol, hac=3):
     """
     Remove solvents and ions have max 'hac' heavy atoms.
@@ -54,23 +59,25 @@ def remove_salts_solvents(mol, hac=3):
         https://github.com/samoturk/mol2vec/blob/master/mol2vec/features.py
     """
     # split molecule into fragments
-    fragments = list(rdmolops.GetMolFrags(mol, asMols = True))
+    fragments = list(rdmolops.GetMolFrags(mol, asMols=True))
     ## keep heaviest only
     ## fragments.sort(reverse=True, key=lambda m: m.GetNumAtoms())
     # remove fragments with < 'hac' heavy atoms
-    fragments = [fragment for fragment in fragments if \
-                 fragment.GetNumAtoms() > hac]
+    fragments = [fragment for fragment in fragments if fragment.GetNumAtoms() > hac]
     #
     if len(fragments) > 1:
-        warnings.warn("molecule contains >1 fragment with >" + str(hac) + \
-                      " heavy atoms")
+        warnings.warn(
+            "molecule contains >1 fragment with >" + str(hac) + " heavy atoms"
+        )
         return None
     elif len(fragments) == 0:
-        warnings.warn("molecule contains no fragments with >" + str(hac) + \
-                      " heavy atoms")
+        warnings.warn(
+            "molecule contains no fragments with >" + str(hac) + " heavy atoms"
+        )
         return None
     else:
         return fragments[0]
+
 
 def continuous_JSD(generated_dist, original_dist, tol=1e-10):
     gen_kde = gaussian_kde(generated_dist)
@@ -81,16 +88,16 @@ def continuous_JSD(generated_dist, original_dist, tol=1e-10):
     Q = org_kde(x_eval) + tol
     return jensenshannon(P, Q)
 
+
 def discrete_JSD(generated_dist, original_dist, tol=1e-10):
     min_v = min(min(generated_dist), min(original_dist))
     max_v = max(max(generated_dist), max(original_dist))
-    gen, bins = histogram(generated_dist, bins=range(min_v, max_v + 1, 1), 
-                          density=True)
-    org, bins = histogram(original_dist, bins=range(min_v, max_v + 1, 1), 
-                          density=True)
+    gen, bins = histogram(generated_dist, bins=range(min_v, max_v + 1, 1), density=True)
+    org, bins = histogram(original_dist, bins=range(min_v, max_v + 1, 1), density=True)
     gen += tol
     org += tol
     return jensenshannon(gen, org)
+
 
 def get_ecfp6_fingerprints(mols, include_none=False):
     """
@@ -105,7 +112,8 @@ def get_ecfp6_fingerprints(mols, include_none=False):
         else:
             fp = AllChem.GetMorganFingerprintAsBitVect(mol, 3, nBits=1024)
             fps.append(fp)
-    return(fps)
+    return fps
+
 
 def internal_diversity(fps, sample_size=1e4, summarise=True):
     """
@@ -126,6 +134,7 @@ def internal_diversity(fps, sample_size=1e4, summarise=True):
         return np.mean(tcs)
     else:
         return tcs
+
 
 def external_diversity(fps1, fps2, sample_size=1e4, summarise=True):
     """
@@ -150,6 +159,7 @@ def external_diversity(fps1, fps2, sample_size=1e4, summarise=True):
             return np.mean(tcs)
     else:
         return tcs
+
 
 def internal_nn(fps, sample_size=1e3, summarise=True):
     """
@@ -177,6 +187,7 @@ def internal_nn(fps, sample_size=1e3, summarise=True):
     else:
         return nns
 
+
 def external_nn(fps1, fps2, sample_size=1e3, summarise=True):
     """i
     Calculate the nearest-neighbor Tanimoto coefficient, searching one set of
@@ -199,13 +210,15 @@ def external_nn(fps1, fps2, sample_size=1e3, summarise=True):
     else:
         return nns
 
+
 def pct_rotatable_bonds(mol):
     n_bonds = mol.GetNumBonds()
     if n_bonds > 0:
         rot_bonds = Lipinski.NumRotatableBonds(mol) / n_bonds
-    else: 
+    else:
         rot_bonds = 0
     return rot_bonds
+
 
 def pct_stereocenters(mol):
     n_atoms = mol.GetNumAtoms()
@@ -222,11 +235,12 @@ def replace_halogen(smiles):
     Replace halogens with single letters (Cl -> L and Br -> R), following
     Olivecrona et al. (J Cheminf 2018).
     """
-    br = re.compile('Br')
-    cl = re.compile('Cl')
-    smiles = br.sub('R', smiles)
-    smiles = cl.sub('L', smiles)
+    br = re.compile("Br")
+    cl = re.compile("Cl")
+    smiles = br.sub("R", smiles)
+    smiles = cl.sub("L", smiles)
     return smiles
+
 
 def read_smiles(smiles_file, max_lines=None):
     """
@@ -234,7 +248,7 @@ def read_smiles(smiles_file, max_lines=None):
     """
     smiles = []
     lines = 0
-    with open(smiles_file, 'r') as f:
+    with open(smiles_file, "r") as f:
         while line := f.readline().strip():
             smiles.append(line)
             lines += 1
@@ -242,14 +256,16 @@ def read_smiles(smiles_file, max_lines=None):
                 break
     return smiles
 
+
 def write_smiles(smiles, smiles_file):
     """
     Write a list of SMILES to a line-delimited file.
     """
     # write sampled SMILES
-    with open(smiles_file, 'w') as f:
+    with open(smiles_file, "w") as f:
         for sm in smiles:
-            _ = f.write(sm + '\n')
+            _ = f.write(sm + "\n")
+
 
 """
 rdkit contributed code to neutralize charged molecules;
@@ -257,43 +273,49 @@ obtained from:
     https://www.rdkit.org/docs/Cookbook.html
     http://www.mail-archive.com/rdkit-discuss@lists.sourceforge.net/msg02669.html
 """
-def _InitialiseNeutralisationReactions():
-    patts= (
-        # Imidazoles
-        ('[n+;H]','n'),
-        # Amines
-        ('[N+;!H0]','N'),
-        # Carboxylic acids and alcohols
-        ('[$([O-]);!$([O-][#7])]','O'),
-        # Thiols
-        ('[S-;X1]','S'),
-        # Sulfonamides
-        ('[$([N-;X2]S(=O)=O)]','N'),
-        # Enamines
-        ('[$([N-;X2][C,N]=C)]','N'),
-        # Tetrazoles
-        ('[n-]','[nH]'),
-        # Sulfoxides
-        ('[$([S-]=O)]','S'),
-        # Amides
-        ('[$([N-]C=O)]','N'),
-        )
-    return [(Chem.MolFromSmarts(x),Chem.MolFromSmiles(y,False)) for x,y in patts]
 
-_reactions=None
+
+def _InitialiseNeutralisationReactions():
+    patts = (
+        # Imidazoles
+        ("[n+;H]", "n"),
+        # Amines
+        ("[N+;!H0]", "N"),
+        # Carboxylic acids and alcohols
+        ("[$([O-]);!$([O-][#7])]", "O"),
+        # Thiols
+        ("[S-;X1]", "S"),
+        # Sulfonamides
+        ("[$([N-;X2]S(=O)=O)]", "N"),
+        # Enamines
+        ("[$([N-;X2][C,N]=C)]", "N"),
+        # Tetrazoles
+        ("[n-]", "[nH]"),
+        # Sulfoxides
+        ("[$([S-]=O)]", "S"),
+        # Amides
+        ("[$([N-]C=O)]", "N"),
+    )
+    return [(Chem.MolFromSmarts(x), Chem.MolFromSmiles(y, False)) for x, y in patts]
+
+
+_reactions = None
+
+
 def NeutraliseCharges(mol, reactions=None):
     global _reactions
     if reactions is None:
         if _reactions is None:
-            _reactions=_InitialiseNeutralisationReactions()
-        reactions=_reactions
-    for i,(reactant, product) in enumerate(reactions):
+            _reactions = _InitialiseNeutralisationReactions()
+        reactions = _reactions
+    for i, (reactant, product) in enumerate(reactions):
         while mol.HasSubstructMatch(reactant):
             rms = AllChem.ReplaceSubstructs(mol, reactant, product)
             mol = rms[0]
     return mol
 
+
 def check_arg(args, arg_name):
     if not hasattr(args, arg_name):
-        return(False)
+        return False
     return getattr(args, arg_name)

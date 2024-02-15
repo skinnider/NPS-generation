@@ -16,25 +16,27 @@ os.chdir(python_dir)
 sys.path.append(python_dir)
 
 # import functions
-from NPS_generation.python.functions import write_smiles, clean_mols, remove_salts_solvents, \
-    NeutraliseCharges
+from NPS_generation.python.functions import (
+    write_smiles,
+    clean_mols,
+    remove_salts_solvents,
+    NeutraliseCharges,
+)
 from NPS_generation.python.datasets import Vocabulary, SelfiesVocabulary
 from NPS_generation.python.util.SmilesEnumerator import SmilesEnumerator
 
 ### dynamically build CLI
 parser = argparse.ArgumentParser()
 ## build the CLI
-grid_file = git_dir + '/sh/grids/preprocess-gdb13-sample.txt'
-grid = pd.read_csv(grid_file, sep='\t')
+grid_file = git_dir + "/sh/grids/preprocess-gdb13-sample.txt"
+grid = pd.read_csv(grid_file, sep="\t")
 for arg_name in list(grid):
-    param_name = '--' + arg_name
+    param_name = "--" + arg_name
     param_dtype = str(grid[arg_name].dtype)
     # convert to pandas
-    param_type = {'object': str,
-                  'int64': int,
-                  'float64': float,
-                  'bool': str
-                  }[param_dtype]
+    param_type = {"object": str, "int64": int, "float64": float, "bool": str}[
+        param_dtype
+    ]
     parser.add_argument(param_name, type=param_type)
 
 # parse all arguments
@@ -47,28 +49,29 @@ if not os.path.isdir(output_dir):
     os.makedirs(output_dir)
 
 # read SMILES
-print('reading input SMILES ...')
-sample = pd.read_csv(args.input_file, sep='\t', names=['smiles', 'freq', 'll'])
-input_smiles = sample['smiles'].tolist()
+print("reading input SMILES ...")
+sample = pd.read_csv(args.input_file, sep="\t", names=["smiles", "freq", "ll"])
+input_smiles = sample["smiles"].tolist()
 
 # convert to molecules
-print('converting {} input SMILES to molecules ...'.format(len(input_smiles)))
+print("converting {} input SMILES to molecules ...".format(len(input_smiles)))
 mols = clean_mols(input_smiles)
 
-# remove salts/solvents 
-print('cleaning {} molecules ...'.format(len(mols)))
-mols = [remove_salts_solvents(mol, hac=3) if mol else None for mol in \
-        tqdm(mols)]
+# remove salts/solvents
+print("cleaning {} molecules ...".format(len(mols)))
+mols = [remove_salts_solvents(mol, hac=3) if mol else None for mol in tqdm(mols)]
 # remove charges
 mols = [NeutraliseCharges(mol) if mol else None for mol in tqdm(mols)]
-# remove molecules with invalid atoms 
-## what unique atoms are present in any molecule? 
-elements = [[atom.GetSymbol() for atom in mol.GetAtoms()] if mol else None \
-             for mol in mols]
-counts = np.unique(list(chain(*[element for element in elements if element])),
-                   return_counts=True)
+# remove molecules with invalid atoms
+## what unique atoms are present in any molecule?
+elements = [
+    [atom.GetSymbol() for atom in mol.GetAtoms()] if mol else None for mol in mols
+]
+counts = np.unique(
+    list(chain(*[element for element in elements if element])), return_counts=True
+)
 ## define valid symbols
-valid = set(['Br', 'C', 'Cl', 'F', 'H', 'I', 'N', 'O', 'P', 'S'])
+valid = set(["Br", "C", "Cl", "F", "H", "I", "N", "O", "P", "S"])
 for idx, atoms in enumerate(elements):
     if atoms is not None and len(set(atoms) - valid) > 0:
         mols[idx] = None
@@ -76,11 +79,11 @@ for idx, atoms in enumerate(elements):
 mols = [mol for mol in mols if mol is not None]
 
 # convert back to canonical SMILES
-print('converting {} molecules back to SMILES ...'.format(len(mols)))
+print("converting {} molecules back to SMILES ...".format(len(mols)))
 canonical = [Chem.MolToSmiles(mol) for mol in tqdm(mols)]
 canonical = [sm for sm in canonical if sm != ""]
 canonical = list(dict.fromkeys(canonical))
-print('got {} unique canonical SMILES'.format(len(canonical)))
+print("got {} unique canonical SMILES".format(len(canonical)))
 
 # augmentation
 smiles = canonical
@@ -88,7 +91,7 @@ if args.enum_factor > 0:
     # create enumerator
     sme = SmilesEnumerator(canonical=False, enum=True)
     enum = []
-    max_tries = 200 ## randomized SMILES to generate for each input structure
+    max_tries = 200  ## randomized SMILES to generate for each input structure
     for sm_idx, sm in enumerate(tqdm(smiles)):
         tries = []
         for try_idx in range(max_tries):
@@ -97,7 +100,7 @@ if args.enum_factor > 0:
                 tries.append(this_try)
                 tries = [rnd for rnd in np.unique(tries)]
                 if len(tries) > args.enum_factor:
-                    tries = tries[:args.enum_factor]
+                    tries = tries[: args.enum_factor]
                     break
             except AttributeError:
                 continue
@@ -105,23 +108,23 @@ if args.enum_factor > 0:
     smiles = enum
 
 # optionally, convert to SELFIES
-if args.representation == 'SELFIES':
-    print('converting SMILES strings to SELFIES ...')
+if args.representation == "SELFIES":
+    print("converting SMILES strings to SELFIES ...")
     sf_out = []
     for sm in smiles:
-            try:
-                sf = selfies_encoder(sm)
-                sf_out.append(sf)
-            except EncoderError:
-                pass
-    
+        try:
+            sf = selfies_encoder(sm)
+            sf_out.append(sf)
+        except EncoderError:
+            pass
+
     smiles = sf_out
-            
+
 # then, write molecules
 write_smiles(smiles, args.output_file)
 
 # last, write vocabulary
-if args.representation == 'SELFIES':
+if args.representation == "SELFIES":
     vocabulary = SelfiesVocabulary(selfies=smiles)
 else:
     vocabulary = Vocabulary(smiles=smiles)
@@ -129,6 +132,6 @@ else:
 print("vocabulary of {} characters:".format(len(vocabulary)))
 print(vocabulary.characters)
 tokens = vocabulary.characters
-with open(args.vocab_file, 'w') as f:
+with open(args.vocab_file, "w") as f:
     for token in tokens:
-        _ = f.write(token + '\n')
+        _ = f.write(token + "\n")

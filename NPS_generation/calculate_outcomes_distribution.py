@@ -17,7 +17,8 @@ from tqdm import tqdm
 
 # suppress Chem.MolFromSmiles error output
 from rdkit import rdBase
-rdBase.DisableLog('rdApp.error')
+
+rdBase.DisableLog("rdApp.error")
 # import from rdkit.Contrib module
 from rdkit.Contrib.SA_Score import sascorer
 from rdkit.Contrib.NP_Score import npscorer
@@ -25,24 +26,30 @@ from rdkit.Contrib.NP_Score import npscorer
 # import functions
 from NPS_generation.functions import clean_mols, read_smiles
 
+
 def main(args_list=None):
     ### CLI
     parser = argparse.ArgumentParser(
-            description='Calculate a series of properties for a set of SMILES')
-    parser.add_argument('--smiles_file', type=str,
-                        help='file containing SMILES')
-    parser.add_argument('--reference_file', type=str,
-                        help='file containing a reference set of SMILES')
-    parser.add_argument('--output_dir', type=str,
-                        help='directory to save output to')
-    parser.add_argument('--selfies', dest='selfies',
-                        help='calculate outcomes for molecules in SELFIES format',
-                        action='store_true')
-    parser.add_argument('--deepsmiles', dest='deepsmiles',
-                        help='calculate outcomes for molecules in DeepSMILES format',
-                        action='store_true')
-    parser.add_argument('--stop_if_exists', dest='stop_if_exists',
-                        action='store_true')
+        description="Calculate a series of properties for a set of SMILES"
+    )
+    parser.add_argument("--smiles_file", type=str, help="file containing SMILES")
+    parser.add_argument(
+        "--reference_file", type=str, help="file containing a reference set of SMILES"
+    )
+    parser.add_argument("--output_dir", type=str, help="directory to save output to")
+    parser.add_argument(
+        "--selfies",
+        dest="selfies",
+        help="calculate outcomes for molecules in SELFIES format",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--deepsmiles",
+        dest="deepsmiles",
+        help="calculate outcomes for molecules in DeepSMILES format",
+        action="store_true",
+    )
+    parser.add_argument("--stop_if_exists", dest="stop_if_exists", action="store_true")
     parser.set_defaults(stop_if_exists=False)
     args = parser.parse_args(args_list)
     if args.output_dir is None:
@@ -61,15 +68,17 @@ def main(args_list=None):
 
     # read SMILES and convert to molecules
     smiles = read_smiles(args.smiles_file)
-    mols = [mol for mol in clean_mols(smiles, selfies=args.selfies,
-                                      deepsmiles=args.deepsmiles) if mol]
+    mols = [
+        mol
+        for mol in clean_mols(smiles, selfies=args.selfies, deepsmiles=args.deepsmiles)
+        if mol
+    ]
     canonical = [Chem.MolToSmiles(mol, isomericSmiles=False) for mol in mols]
 
     # also read the reference file
     ref_smiles = read_smiles(args.reference_file)
     ref_mols = [mol for mol in clean_mols(ref_smiles) if mol]
-    ref_canonical = [Chem.MolToSmiles(mol, isomericSmiles=False) for mol in \
-                     ref_mols]
+    ref_canonical = [Chem.MolToSmiles(mol, isomericSmiles=False) for mol in ref_mols]
 
     ## drop known molecules
     canonical = [sm for sm in canonical if sm not in ref_canonical]
@@ -99,8 +108,9 @@ def main(args_list=None):
     ## % of sp3 carbons
     pct_sp3 = [Lipinski.FractionCSP3(mol) for mol in tqdm(mols)]
     ## % heteroatoms
-    pct_hetero = [Lipinski.NumHeteroatoms(mol) / mol.GetNumAtoms() for mol in \
-                  tqdm(mols)]
+    pct_hetero = [
+        Lipinski.NumHeteroatoms(mol) / mol.GetNumAtoms() for mol in tqdm(mols)
+    ]
     ## number of rings
     rings = [Lipinski.RingCount(mol) for mol in tqdm(mols)]
     ## SA score
@@ -116,37 +126,46 @@ def main(args_list=None):
     NP = [npscorer.scoreMol(mol, fscore) for mol in tqdm(mols)]
 
     # add all outcomes to data frame
-    res = pd.concat([res, pd.DataFrame({'outcome': 'Molecular weight',
-                                   'value': mws })], axis=0)
-    res = pd.concat([res, pd.DataFrame({'outcome': 'LogP',
-                                   'value': logp })], axis=0)
-    res = pd.concat([res, pd.DataFrame({'outcome': 'BertzTC',
-                                   'value': tcs })], axis=0)
-    res = pd.concat([res, pd.DataFrame({'outcome': 'TPSA',
-                                   'value': tpsa })], axis=0)
-    res = pd.concat([res, pd.DataFrame({'outcome': 'QED',
-                                   'value': qed })], axis=0)
-    res = pd.concat([res, pd.DataFrame({'outcome': '% sp3 carbons',
-                                   'value': pct_sp3 })], axis=0)
-    res = pd.concat([res, pd.DataFrame({'outcome': '% heteroatoms',
-                                   'value': pct_hetero})], axis=0)
-    res = pd.concat([res, pd.DataFrame({'outcome': '# of rings',
-                                   'value': rings })], axis=0)
-    res = pd.concat([res, pd.DataFrame({'outcome': 'Synthetic accessibility score',
-                                   'value': SA })], axis=0)
-    res = pd.concat([res, pd.DataFrame({'outcome': 'Natural product-likeness score',
-                                   'value': NP })], axis=0)
+    res = pd.concat(
+        [res, pd.DataFrame({"outcome": "Molecular weight", "value": mws})], axis=0
+    )
+    res = pd.concat([res, pd.DataFrame({"outcome": "LogP", "value": logp})], axis=0)
+    res = pd.concat([res, pd.DataFrame({"outcome": "BertzTC", "value": tcs})], axis=0)
+    res = pd.concat([res, pd.DataFrame({"outcome": "TPSA", "value": tpsa})], axis=0)
+    res = pd.concat([res, pd.DataFrame({"outcome": "QED", "value": qed})], axis=0)
+    res = pd.concat(
+        [res, pd.DataFrame({"outcome": "% sp3 carbons", "value": pct_sp3})], axis=0
+    )
+    res = pd.concat(
+        [res, pd.DataFrame({"outcome": "% heteroatoms", "value": pct_hetero})], axis=0
+    )
+    res = pd.concat(
+        [res, pd.DataFrame({"outcome": "# of rings", "value": rings})], axis=0
+    )
+    res = pd.concat(
+        [res, pd.DataFrame({"outcome": "Synthetic accessibility score", "value": SA})],
+        axis=0,
+    )
+    res = pd.concat(
+        [res, pd.DataFrame({"outcome": "Natural product-likeness score", "value": NP})],
+        axis=0,
+    )
     for idx, element in enumerate(counts[0]):
         atom_count = counts[1][idx]
-        res = pd.concat([res, pd.DataFrame({'outcome': '# atoms, ' + element,
-                                       'value': [atom_count] })], axis=0)
+        res = pd.concat(
+            [
+                res,
+                pd.DataFrame({"outcome": "# atoms, " + element, "value": [atom_count]}),
+            ],
+            axis=0,
+        )
 
     # make output directories
     if not os.path.isdir(args.output_dir):
         os.makedirs(args.output_dir)
 
     # write output
-    res.to_csv(output_file, index=False, compression='gzip')
+    res.to_csv(output_file, index=False, compression="gzip")
 
 
 if __name__ == "__main__":

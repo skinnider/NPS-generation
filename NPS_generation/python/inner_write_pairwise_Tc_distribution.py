@@ -19,22 +19,21 @@ from functions import clean_mols, get_ecfp6_fingerprints, read_smiles
 
 # suppress rdkit errors
 from rdkit import rdBase
-rdBase.DisableLog('rdApp.error')
+
+rdBase.DisableLog("rdApp.error")
 
 ### dynamically build CLI
 parser = argparse.ArgumentParser()
 ## build the CLI
-grid_file = git_dir + '/sh/grids/write-pairwise-Tc-distribution.txt'
-grid = pd.read_csv(grid_file, sep='\t')
+grid_file = git_dir + "/sh/grids/write-pairwise-Tc-distribution.txt"
+grid = pd.read_csv(grid_file, sep="\t")
 for arg_name in list(grid):
-    param_name = '--' + arg_name
+    param_name = "--" + arg_name
     param_dtype = str(grid[arg_name].dtype)
     # convert to pandas
-    param_type = {'object': str,
-                  'int64': int,
-                  'float64': float,
-                  'bool': str
-                  }[param_dtype]
+    param_type = {"object": str, "int64": int, "float64": float, "bool": str}[
+        param_dtype
+    ]
     parser.add_argument(param_name, type=param_type)
 
 # parse all arguments
@@ -67,12 +66,12 @@ fps1 = [fps[idx] for idx in idx1]
 fps2 = [fps[idx] for idx in idx2]
 
 # calculate Tc
-tcs = [FingerprintSimilarity(fps1[idx], fps2[idx]) for idx in \
-       range(int(args.n))]
+tcs = [FingerprintSimilarity(fps1[idx], fps2[idx]) for idx in range(int(args.n))]
 
 # create output
-tc_df = pd.DataFrame({'smiles1': smiles1, 'smiles2': smiles2, 'tc': tcs}).\
-    drop_duplicates()
+tc_df = pd.DataFrame(
+    {"smiles1": smiles1, "smiles2": smiles2, "tc": tcs}
+).drop_duplicates()
 
 # write to output files
-tc_df.to_csv(args.output_file, index=False, compression='gzip')
+tc_df.to_csv(args.output_file, index=False, compression="gzip")

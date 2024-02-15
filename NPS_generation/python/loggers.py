@@ -4,7 +4,8 @@ import torch
 from rdkit import Chem
 from tqdm import tqdm
 
-class EarlyStopping():
+
+class EarlyStopping:
     """
     Monitor the training process to stop training early if the model shows
     evidence of beginning to overfit the validation dataset, and save the
@@ -18,7 +19,7 @@ class EarlyStopping():
     https://github.com/Bjarten/early-stopping-pytorch
     https://github.com/fastai/fastai/blob/master/courses/dl2/imdb_scripts/finetune_lm.py
     """
-    
+
     def __init__(self, patience=100):
         """
         Args:
@@ -32,9 +33,8 @@ class EarlyStopping():
         self.best_loss = None
         self.step_at_best = 0
         self.stop = False
-        print("instantiated early stopping with patience=" + \
-              str(self.patience))
-    
+        print("instantiated early stopping with patience=" + str(self.patience))
+
     def __call__(self, val_loss, model, output_file, step_idx):
         # do nothing if early stopping is disabled
         if self.patience > 0:
@@ -47,8 +47,7 @@ class EarlyStopping():
                 self.counter += 1
                 if self.counter >= self.patience:
                     self.stop = True
-                    print("stopping early with best loss " + \
-                          str(self.best_loss))
+                    print("stopping early with best loss " + str(self.best_loss))
             else:
                 # loss is decreasing
                 self.best_loss = val_loss
@@ -56,32 +55,39 @@ class EarlyStopping():
                 ## reset counter
                 self.counter = 0
                 self.save_model(model, output_file)
-    
+
     def save_model(self, model, output_file):
         torch.save(model.state_dict(), output_file)
 
-def track_loss(output_file, epoch, batch_idx,
-               training_loss, validation_loss):
-    sched = pd.DataFrame({'epoch': epoch + 1, 
-                          'minibatch': batch_idx,
-                          'outcome': ['training loss', 'validation loss'],
-                          'value': [training_loss, validation_loss]})
+
+def track_loss(output_file, epoch, batch_idx, training_loss, validation_loss):
+    sched = pd.DataFrame(
+        {
+            "epoch": epoch + 1,
+            "minibatch": batch_idx,
+            "outcome": ["training loss", "validation loss"],
+            "value": [training_loss, validation_loss],
+        }
+    )
 
     # write training schedule (write header if file does not exist)
     if not os.path.isfile(output_file) or batch_idx == 0:
         sched.to_csv(output_file, index=False)
     else:
-        sched.to_csv(output_file, index=False, mode='a', header=False)
+        sched.to_csv(output_file, index=False, mode="a", header=False)
 
-def print_update(model, epoch, batch_idx, 
-                 training_loss, validation_loss,
-                 n_smiles=64, masses=None):
+
+def print_update(
+    model, epoch, batch_idx, training_loss, validation_loss, n_smiles=64, masses=None
+):
     # print message
     tqdm.write("*" * 50)
-    tqdm.write("epoch {} -- step {} -- loss: {:5.2f} -- ".\
-               format(epoch, batch_idx, training_loss) + \
-               "validation loss: {:5.2f}".\
-               format(validation_loss))
+    tqdm.write(
+        "epoch {} -- step {} -- loss: {:5.2f} -- ".format(
+            epoch, batch_idx, training_loss
+        )
+        + "validation loss: {:5.2f}".format(validation_loss)
+    )
 
     # sample a batch of SMILES and print them
     if masses is not None:
@@ -89,7 +95,7 @@ def print_update(model, epoch, batch_idx,
         smiles = model.sample(masses, return_smiles=True)
     else:
         smiles = model.sample(n_smiles, return_smiles=True)
-    
+
     valid = 0
     for idx, sm in enumerate(smiles):
         if idx < 5:

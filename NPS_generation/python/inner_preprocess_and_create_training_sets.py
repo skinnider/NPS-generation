@@ -17,26 +17,31 @@ from selfies.exceptions import EncoderError
 from tqdm import tqdm
 
 # import functions
-from NPS_generation.python.functions import read_smiles, write_smiles, clean_mols, \
-    remove_salts_solvents, NeutraliseCharges
+from NPS_generation.python.functions import (
+    read_smiles,
+    write_smiles,
+    clean_mols,
+    remove_salts_solvents,
+    NeutraliseCharges,
+)
 from NPS_generation.python.datasets import Vocabulary, SelfiesVocabulary
 from NPS_generation.python.util.SmilesEnumerator import SmilesEnumerator
 
 
 def add_args(parser):
-    parser.add_argument('--input_file', type=str)
-    parser.add_argument('--train_file', type=str)
-    parser.add_argument('--test_file', type=str)
-    parser.add_argument('--vocab_file', type=str)
-    parser.add_argument('--train_file_smi', type=str)
-    parser.add_argument('--vocab_file_fps', type=str)
-    parser.add_argument('--representation', type=str)
-    parser.add_argument('--k', type=int)
-    parser.add_argument('--cv_fold', type=int)
-    parser.add_argument('--sample_idx', type=int)
-    parser.add_argument('--enum_factor', type=int)
-    parser.add_argument('--n_molecules', type=int)
-    parser.add_argument('--min_tc', type=int)
+    parser.add_argument("--input_file", type=str)
+    parser.add_argument("--train_file", type=str)
+    parser.add_argument("--test_file", type=str)
+    parser.add_argument("--vocab_file", type=str)
+    parser.add_argument("--train_file_smi", type=str)
+    parser.add_argument("--vocab_file_fps", type=str)
+    parser.add_argument("--representation", type=str)
+    parser.add_argument("--k", type=int)
+    parser.add_argument("--cv_fold", type=int)
+    parser.add_argument("--sample_idx", type=int)
+    parser.add_argument("--enum_factor", type=int)
+    parser.add_argument("--n_molecules", type=int)
+    parser.add_argument("--min_tc", type=int)
     return parser
 
 
@@ -46,10 +51,14 @@ def preprocess_molecules(mols):
     mols = [NeutraliseCharges(mol) if mol else None for mol in tqdm(mols)]
 
     # remove molecules with invalid atoms
-    elements = [[atom.GetSymbol() for atom in mol.GetAtoms()] if mol else None for mol in mols]
-    counts = np.unique(list(chain(*[element for element in elements if element])), return_counts=True)
+    elements = [
+        [atom.GetSymbol() for atom in mol.GetAtoms()] if mol else None for mol in mols
+    ]
+    counts = np.unique(
+        list(chain(*[element for element in elements if element])), return_counts=True
+    )
 
-    valid_symbols = set(['Br', 'C', 'Cl', 'F', 'H', 'I', 'N', 'O', 'P', 'S'])
+    valid_symbols = set(["Br", "C", "Cl", "F", "H", "I", "N", "O", "P", "S"])
     for idx, atoms in enumerate(elements):
         if atoms is not None and len(set(atoms) - valid_symbols) > 0:
             mols[idx] = None
@@ -65,10 +74,15 @@ def preprocess_molecules(mols):
 
 
 def create_training_sets(input_smiles, mols, sample_idx, n_molecules, min_tc):
-    input_smiles = [input_smiles[idx] for idx, mol in enumerate(mols) if mol is not None]
+    input_smiles = [
+        input_smiles[idx] for idx, mol in enumerate(mols) if mol is not None
+    ]
     input_mols = [mol for mol in mols if mol is not None]
     print(f"calculating fingerprints for {len(input_mols)} valid molecules ...")
-    input_fps = [AllChem.GetMorganFingerprintAsBitVect(input_mol, 3, nBits=1024) for input_mol in tqdm(input_mols)]
+    input_fps = [
+        AllChem.GetMorganFingerprintAsBitVect(input_mol, 3, nBits=1024)
+        for input_mol in tqdm(input_mols)
+    ]
 
     # shuffle SMILES and fingerprints
     inputs = list(zip(input_smiles, input_fps))
@@ -80,7 +94,9 @@ def create_training_sets(input_smiles, mols, sample_idx, n_molecules, min_tc):
     max_tries = 100
     success = False
     for try_idx in range(max_tries):
-        print(f"picking {n_molecules} molecules with min_tc={min_tc} try #{try_idx} of {max_tries} ...")
+        print(
+            f"picking {n_molecules} molecules with min_tc={min_tc} try #{try_idx} of {max_tries} ..."
+        )
         inputs = list(zip(input_smiles, input_fps))
         random.seed(try_idx)
         random.shuffle(inputs)
@@ -92,11 +108,13 @@ def create_training_sets(input_smiles, mols, sample_idx, n_molecules, min_tc):
 
         tcs = [FingerprintSimilarity(input_fp, target_fp) for input_fp in input_fps]
         # subset SMILES based on fingerprint similarity
-        subset_smiles = [input_smiles for input_smiles, tc in zip(input_smiles, tcs) if tc >= min_tc]
+        subset_smiles = [
+            input_smiles for input_smiles, tc in zip(input_smiles, tcs) if tc >= min_tc
+        ]
 
         # break if we have enough molecules
         if len(subset_smiles) >= n_molecules:
-            subset_smiles = subset_smiles[:int(n_molecules)]
+            subset_smiles = subset_smiles[: int(n_molecules)]
             success = True
             break
 
@@ -127,7 +145,7 @@ def augment_smiles(enum_factor, folds):
 
 
 def convert_to_selfies(smiles):
-    print('converting {} SMILES strings to SELFIES ...'.format(len(smiles)))
+    print("converting {} SMILES strings to SELFIES ...".format(len(smiles)))
     selfies = []
 
     for sm in smiles:
@@ -140,14 +158,14 @@ def convert_to_selfies(smiles):
 
 
 def write_to_file(representation, output_molecules, output_file):
-    if representation == 'SELFIES':
+    if representation == "SELFIES":
         output_molecules = convert_to_selfies(output_molecules)
 
     write_smiles(output_molecules, output_file)
 
 
 def write_vocabulary(training_set, vocab_file, representation):
-    if representation == 'SELFIES':
+    if representation == "SELFIES":
         training_set = convert_to_selfies(training_set)
         vocabulary = SelfiesVocabulary(selfies=training_set)
     else:
@@ -156,17 +174,30 @@ def write_vocabulary(training_set, vocab_file, representation):
     print("vocabulary of {} characters:".format(len(vocabulary)))
     print(vocabulary.characters)
     tokens = vocabulary.characters
-    with open(vocab_file, 'w') as f:
+    with open(vocab_file, "w") as f:
         for token in tokens:
-            _ = f.write(token + '\n')
+            _ = f.write(token + "\n")
 
 
-def preprocess_and_create_training_sets(input_file, train_file, test_file, vocab_file, train_file_smi, vocab_file_fps,
-                                        representation, k, cv_fold, sample_idx, enum_factor, n_molecules, min_tc):
+def preprocess_and_create_training_sets(
+    input_file,
+    train_file,
+    test_file,
+    vocab_file,
+    train_file_smi,
+    vocab_file_fps,
+    representation,
+    k,
+    cv_fold,
+    sample_idx,
+    enum_factor,
+    n_molecules,
+    min_tc,
+):
     output_dir = os.path.dirname(train_file)
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
-    print('reading input SMILES ...')
+    print("reading input SMILES ...")
     input_smiles = read_smiles(input_file)
 
     print(f"converting {len(input_smiles)} input SMILES to molecules ...")
@@ -179,23 +210,25 @@ def preprocess_and_create_training_sets(input_file, train_file, test_file, vocab
     fold_length = int(len(canonical) / k)
     folds = []
     for i in range(k - 1):
-        folds += [canonical[i * fold_length:(i + 1) * fold_length]]
+        folds += [canonical[i * fold_length : (i + 1) * fold_length]]
 
-    folds += [canonical[(k - 1) * fold_length:len(canonical)]]
+    folds += [canonical[(k - 1) * fold_length : len(canonical)]]
     folds = augment_smiles(enum_factor=enum_factor, folds=folds)
 
     # Collapse fold into training/test datasets
     fold_idx = cv_fold - 1
     test = folds[fold_idx]
-    train = folds[:fold_idx] + folds[fold_idx + 1:]
+    train = folds[:fold_idx] + folds[fold_idx + 1 :]
     train = list(itertools.chain.from_iterable(train))
 
-    subset_smiles, success = create_training_sets(input_smiles, mols, sample_idx, n_molecules, min_tc)
+    subset_smiles, success = create_training_sets(
+        input_smiles, mols, sample_idx, n_molecules, min_tc
+    )
 
     # if we failed to pick enough molecules, write an empty error file
     if not success:
         error_file = os.path.splitext(train_file_smi)[0] + ".err"
-        with open(error_file, 'w') as empty_file:
+        with open(error_file, "w") as empty_file:
             pass
     else:
         print(f"doing SMILES enumeration on {len(subset_smiles)} molecules ...")
@@ -228,7 +261,7 @@ def main(args):
     )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     args = add_args(parser).parse_args()
     main(args)

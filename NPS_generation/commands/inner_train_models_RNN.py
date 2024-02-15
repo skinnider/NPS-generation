@@ -14,7 +14,7 @@ from tqdm import tqdm
 # suppress Chem.MolFromSmiles error output
 from rdkit import rdBase
 
-rdBase.DisableLog('rdApp.error')
+rdBase.DisableLog("rdApp.error")
 
 from NPS_generation.python.datasets import SmilesDataset, SelfiesDataset
 from NPS_generation.python.models import RNN
@@ -24,33 +24,54 @@ from NPS_generation.functions import set_seed, seed_type
 
 
 def add_args(parser):
-    parser.add_argument('--database', type=str)
-    parser.add_argument('--representation', type=str)
-    parser.add_argument('--seed', type=seed_type, default=None, nargs="?", help="Random seed")
-    parser.add_argument('--rnn_type', type=str)
-    parser.add_argument('--embedding_size', type=int)
-    parser.add_argument('--hidden_size', type=int)
-    parser.add_argument('--n_layers', type=int)
-    parser.add_argument('--dropout', type=float)
-    parser.add_argument('--batch_size', type=int)
-    parser.add_argument('--learning_rate', type=float)
-    parser.add_argument('--max_epochs', type=int)
-    parser.add_argument('--patience', type=int)
-    parser.add_argument('--log_every_steps', type=int)
-    parser.add_argument('--log_every_epochs', type=int)
-    parser.add_argument('--sample_mols', type=int)
-    parser.add_argument('--input_file', type=str)
-    parser.add_argument('--vocab_file', type=str)
-    parser.add_argument('--smiles_file', type=str, default=None)
-    parser.add_argument('--model_file', type=str)
-    parser.add_argument('--loss_file', type=str)
+    parser.add_argument("--database", type=str)
+    parser.add_argument("--representation", type=str)
+    parser.add_argument(
+        "--seed", type=seed_type, default=None, nargs="?", help="Random seed"
+    )
+    parser.add_argument("--rnn_type", type=str)
+    parser.add_argument("--embedding_size", type=int)
+    parser.add_argument("--hidden_size", type=int)
+    parser.add_argument("--n_layers", type=int)
+    parser.add_argument("--dropout", type=float)
+    parser.add_argument("--batch_size", type=int)
+    parser.add_argument("--learning_rate", type=float)
+    parser.add_argument("--max_epochs", type=int)
+    parser.add_argument("--patience", type=int)
+    parser.add_argument("--log_every_steps", type=int)
+    parser.add_argument("--log_every_epochs", type=int)
+    parser.add_argument("--sample_mols", type=int)
+    parser.add_argument("--input_file", type=str)
+    parser.add_argument("--vocab_file", type=str)
+    parser.add_argument("--smiles_file", type=str, default=None)
+    parser.add_argument("--model_file", type=str)
+    parser.add_argument("--loss_file", type=str)
 
     return parser
 
 
-def train_models_RNN(database, representation, seed, rnn_type, embedding_size, hidden_size, n_layers, dropout,
-                     batch_size, learning_rate, max_epochs, patience, log_every_steps, log_every_epochs,
-                     sample_mols, input_file, vocab_file, smiles_file, model_file, loss_file):
+def train_models_RNN(
+    database,
+    representation,
+    seed,
+    rnn_type,
+    embedding_size,
+    hidden_size,
+    n_layers,
+    dropout,
+    batch_size,
+    learning_rate,
+    max_epochs,
+    patience,
+    log_every_steps,
+    log_every_epochs,
+    sample_mols,
+    input_file,
+    vocab_file,
+    smiles_file,
+    model_file,
+    loss_file,
+):
 
     set_seed(seed)
 
@@ -58,37 +79,35 @@ def train_models_RNN(database, representation, seed, rnn_type, embedding_size, h
     os.makedirs(os.path.dirname(loss_file), exist_ok=True)
 
     # detect device
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print('cuda: {}'.format(torch.cuda.is_available()))
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("cuda: {}".format(torch.cuda.is_available()))
 
     # read training set
     inputs = read_smiles(input_file)
 
     # convert to dataset
-    if representation == 'SELFIES':
+    if representation == "SELFIES":
         dataset = SelfiesDataset(selfies=inputs, vocab_file=vocab_file)
     else:
         dataset = SmilesDataset(smiles=inputs, vocab_file=vocab_file)
 
     # create model
-    model = RNN(dataset.vocabulary,
-                rnn_type=rnn_type,
-                n_layers=n_layers,
-                embedding_size=embedding_size,
-                hidden_size=hidden_size,
-                dropout=dropout)
+    model = RNN(
+        dataset.vocabulary,
+        rnn_type=rnn_type,
+        n_layers=n_layers,
+        embedding_size=embedding_size,
+        hidden_size=hidden_size,
+        dropout=dropout,
+    )
     print(dataset.vocabulary.dictionary)
 
     # set up data loader
-    loader = DataLoader(dataset,
-                        batch_size=batch_size,
-                        shuffle=True,
-                        collate_fn=dataset.collate)
+    loader = DataLoader(
+        dataset, batch_size=batch_size, shuffle=True, collate_fn=dataset.collate
+    )
     # set up optimizer
-    optim = Adam(model.parameters(),
-                 betas=(0.9, 0.999),
-                 eps=1e-08,
-                 lr=learning_rate)
+    optim = Adam(model.parameters(), betas=(0.9, 0.999), eps=1e-08, lr=learning_rate)
     # set up early stopping
     early_stop = EarlyStopping(patience=patience)
 
@@ -118,10 +137,12 @@ def train_models_RNN(database, representation, seed, rnn_type, embedding_size, h
 
             # print update and write training schedule?
             if counter % log_every_steps == 0:
-                track_loss(loss_file, epoch, counter,
-                           loss.item(), validation_loss.item())
-                print_update(model, epoch, batch_idx + 1, loss.item(),
-                             validation_loss.item())
+                track_loss(
+                    loss_file, epoch, counter, loss.item(), validation_loss.item()
+                )
+                print_update(
+                    model, epoch, batch_idx + 1, loss.item(), validation_loss.item()
+                )
 
             # check early stopping
             early_stop(validation_loss.item(), model, model_file, counter)
@@ -131,20 +152,23 @@ def train_models_RNN(database, representation, seed, rnn_type, embedding_size, h
 
         # print update and write training schedule?
         if log_every_epochs:
-            track_loss(loss_file, epoch, counter,
-                       loss.item(), validation_loss.item())
-            print_update(model, epoch, 'NA', loss.item(), validation_loss.item())
+            track_loss(loss_file, epoch, counter, loss.item(), validation_loss.item())
+            print_update(model, epoch, "NA", loss.item(), validation_loss.item())
 
         if early_stop.stop:
             break
 
     # append information about minimum validation loss
     if log_every_epochs or log_every_steps:
-        row = pd.DataFrame({'epoch': [None],
-                            'minibatch': [early_stop.step_at_best],
-                            'outcome': ['training loss'],
-                            'value': [early_stop.best_loss]})
-        row.to_csv(loss_file, index=False, mode='a', header=False)
+        row = pd.DataFrame(
+            {
+                "epoch": [None],
+                "minibatch": [early_stop.step_at_best],
+                "outcome": ["training loss"],
+                "value": [early_stop.best_loss],
+            }
+        )
+        row.to_csv(loss_file, index=False, mode="a", header=False)
 
     # load the best model
     model.load_state_dict(torch.load(model_file))
@@ -188,7 +212,7 @@ def main(args):
     )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     args = add_args(parser).parse_args()
     main(args)

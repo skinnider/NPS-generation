@@ -4,45 +4,50 @@ import torch.nn.functional as F
 from torch.nn import init, CrossEntropyLoss
 from NPS_generation.datasets import Variable
 
+
 class RNN(nn.Module):
 
-    def __init__(self,
-                 vocabulary,
-                 rnn_type='GRU',
-                 embedding_size=128,
-                 hidden_size=512,
-                 n_layers=3,
-                 dropout=0,
-                 bidirectional=False,
-                 tie_weights=False,
-                 nonlinearity=None):
+    def __init__(
+        self,
+        vocabulary,
+        rnn_type="GRU",
+        embedding_size=128,
+        hidden_size=512,
+        n_layers=3,
+        dropout=0,
+        bidirectional=False,
+        tie_weights=False,
+        nonlinearity=None,
+    ):
         super(RNN, self).__init__()
         # vocabulary
         self.vocabulary = vocabulary
         self.vocabulary_size = len(self.vocabulary)
         # embedding layer
-        padding_token = self.vocabulary.dictionary['<PAD>']
-        self.embedding = nn.Embedding(self.vocabulary_size,
-                                      embedding_size,
-                                      padding_idx=padding_token)
+        padding_token = self.vocabulary.dictionary["<PAD>"]
+        self.embedding = nn.Embedding(
+            self.vocabulary_size, embedding_size, padding_idx=padding_token
+        )
         # RNN itself
-        if rnn_type in ['LSTM', 'GRU']:
+        if rnn_type in ["LSTM", "GRU"]:
             self.rnn = getattr(nn, rnn_type)(
-                    input_size=embedding_size,
-                    hidden_size=hidden_size,
-                    num_layers=n_layers,
-                    dropout=dropout,
-                    bidirectional=bidirectional,
-                    batch_first=True)
-        elif rnn_type == 'RNN':
+                input_size=embedding_size,
+                hidden_size=hidden_size,
+                num_layers=n_layers,
+                dropout=dropout,
+                bidirectional=bidirectional,
+                batch_first=True,
+            )
+        elif rnn_type == "RNN":
             self.rnn = nn.RNN(
-                    input_size=embedding_size,
-                    hidden_size=hidden_size,
-                    nonlinearity=nonlinearity,
-                    num_layers=n_layers,
-                    dropout=dropout,
-                    bidirectional=bidirectional,
-                    batch_first=True)
+                input_size=embedding_size,
+                hidden_size=hidden_size,
+                nonlinearity=nonlinearity,
+                num_layers=n_layers,
+                dropout=dropout,
+                bidirectional=bidirectional,
+                batch_first=True,
+            )
         else:
             raise ValueError("invalid RNN model type: " + str(rnn_type))
         # dropout
@@ -60,14 +65,15 @@ class RNN(nn.Module):
         # weight tying
         if tie_weights:
             if hidden_size != embedding_size:
-                raise ValueError("when using tied weights, hidden_size " + \
-                                 "must be equal to embedding_size")
+                raise ValueError(
+                    "when using tied weights, hidden_size "
+                    + "must be equal to embedding_size"
+                )
             self.decoder.weight = self.embedding.weight
         self.tie_weights = tie_weights
         # loss function (ignoring padding)
-        padding_idx = self.vocabulary.dictionary['<PAD>']
-        self.loss_fn = CrossEntropyLoss(ignore_index=padding_idx,
-                                        reduction='none')
+        padding_idx = self.vocabulary.dictionary["<PAD>"]
+        self.loss_fn = CrossEntropyLoss(ignore_index=padding_idx, reduction="none")
         # initialize weights
         self.init_weights()
         # move to GPU
@@ -136,7 +142,7 @@ class RNN(nn.Module):
             logits, hidden = self(inputs[:, step].unsqueeze(1), hidden)
             log_probs += self.loss_fn(logits.squeeze(1), targets[:, step])
 
-         # manually average over non-zero lengths
+        # manually average over non-zero lengths
         log_probs = log_probs / lengths.type_as(log_probs)
         return log_probs
 
@@ -151,11 +157,10 @@ class RNN(nn.Module):
               SMILES
         """
         # get start/stop tokens
-        start_token = self.vocabulary.dictionary['SOS']
-        stop_token = self.vocabulary.dictionary['EOS']
+        start_token = self.vocabulary.dictionary["SOS"]
+        stop_token = self.vocabulary.dictionary["EOS"]
         # create start token tensor (automatically detect cuda)
-        x = next(self.parameters()).data.new(n_seq).\
-            fill_(start_token).long()
+        x = next(self.parameters()).data.new(n_seq).fill_(start_token).long()
         # create hidden
         hidden = self.init_hidden(n_seq)
         # create length filler
@@ -184,8 +189,7 @@ class RNN(nn.Module):
         # concatenate sequences and decode
         seqs = torch.cat(sequences, 1)
         if return_smiles:
-            smiles = [self.vocabulary.decode(seq.cpu().numpy()) for \
-                      seq in seqs]
+            smiles = [self.vocabulary.decode(seq.cpu().numpy()) for seq in seqs]
             if return_nll:
                 return smiles, log_probs
             else:
@@ -211,14 +215,13 @@ class RNN(nn.Module):
         """
         weight = next(self.parameters()).data
         layer_dim = 2 * self.n_layers if self.bidirectional else self.n_layers
-        if self.rnn_type == 'LSTM':
-            return (Variable(weight.new(layer_dim, batch_size,
-                                        self.hidden_size).zero_()),
-                    Variable(weight.new(layer_dim, batch_size,
-                                        self.hidden_size).zero_()))
+        if self.rnn_type == "LSTM":
+            return (
+                Variable(weight.new(layer_dim, batch_size, self.hidden_size).zero_()),
+                Variable(weight.new(layer_dim, batch_size, self.hidden_size).zero_()),
+            )
         else:
-            return Variable(weight.new(layer_dim, batch_size,
-                                       self.hidden_size).zero_())
+            return Variable(weight.new(layer_dim, batch_size, self.hidden_size).zero_())
 
     def init_weights(self):
         """
@@ -231,38 +234,43 @@ class RNN(nn.Module):
         if not self.tie_weights:
             init.xavier_normal_(self.decoder.weight)
 
+
 class OneHotRNN(nn.Module):
 
-    def __init__(self,
-                 vocabulary,
-                 rnn_type='GRU',
-                 hidden_size=512,
-                 n_layers=3,
-                 dropout=0,
-                 bidirectional=False,
-                 nonlinearity=None):
+    def __init__(
+        self,
+        vocabulary,
+        rnn_type="GRU",
+        hidden_size=512,
+        n_layers=3,
+        dropout=0,
+        bidirectional=False,
+        nonlinearity=None,
+    ):
         super(OneHotRNN, self).__init__()
         # vocabulary
         self.vocabulary = vocabulary
         self.vocabulary_size = len(self.vocabulary)
         # RNN itself
-        if rnn_type in ['LSTM', 'GRU']:
+        if rnn_type in ["LSTM", "GRU"]:
             self.rnn = getattr(nn, rnn_type)(
-                    input_size=self.vocabulary_size,
-                    hidden_size=hidden_size,
-                    num_layers=n_layers,
-                    dropout=dropout,
-                    bidirectional=bidirectional,
-                    batch_first=True)
-        elif rnn_type == 'RNN':
+                input_size=self.vocabulary_size,
+                hidden_size=hidden_size,
+                num_layers=n_layers,
+                dropout=dropout,
+                bidirectional=bidirectional,
+                batch_first=True,
+            )
+        elif rnn_type == "RNN":
             self.rnn = nn.RNN(
-                    input_size=self.vocabulary_size,
-                    hidden_size=hidden_size,
-                    nonlinearity=nonlinearity,
-                    num_layers=n_layers,
-                    dropout=dropout,
-                    bidirectional=bidirectional,
-                    batch_first=True)
+                input_size=self.vocabulary_size,
+                hidden_size=hidden_size,
+                nonlinearity=nonlinearity,
+                num_layers=n_layers,
+                dropout=dropout,
+                bidirectional=bidirectional,
+                batch_first=True,
+            )
         else:
             raise ValueError("invalid RNN model type: " + str(rnn_type))
         # dropout
@@ -277,9 +285,8 @@ class OneHotRNN(nn.Module):
         linear_dim1 = hidden_size * 2 if bidirectional else hidden_size
         self.decoder = nn.Linear(linear_dim1, self.vocabulary_size)
         # loss function (ignoring padding)
-        padding_idx = self.vocabulary.dictionary['<PAD>']
-        self.loss_fn = CrossEntropyLoss(ignore_index=padding_idx,
-                                        reduction='none')
+        padding_idx = self.vocabulary.dictionary["<PAD>"]
+        self.loss_fn = CrossEntropyLoss(ignore_index=padding_idx, reduction="none")
         # initialize weights
         self.init_weights()
         # move to GPU
@@ -340,7 +347,7 @@ class OneHotRNN(nn.Module):
             logits, hidden = self(inputs[:, step].unsqueeze(1), hidden)
             log_probs += self.loss_fn(logits.squeeze(1), targets[:, step])
 
-         # manually average over non-zero lengths
+        # manually average over non-zero lengths
         log_probs = log_probs / lengths.type_as(log_probs)
         return log_probs
 
@@ -355,11 +362,10 @@ class OneHotRNN(nn.Module):
               SMILES
         """
         # get start/stop tokens
-        start_token = self.vocabulary.dictionary['SOS']
-        stop_token = self.vocabulary.dictionary['EOS']
+        start_token = self.vocabulary.dictionary["SOS"]
+        stop_token = self.vocabulary.dictionary["EOS"]
         # create start token tensor (automatically detect cuda)
-        x = next(self.parameters()).data.new(n_seq).\
-            fill_(start_token).long()
+        x = next(self.parameters()).data.new(n_seq).fill_(start_token).long()
         # create hidden
         hidden = self.init_hidden(n_seq)
 
@@ -380,8 +386,7 @@ class OneHotRNN(nn.Module):
         # concatenate sequences and decode
         seqs = torch.cat(sequences, 1)
         if return_smiles:
-            smiles = [self.vocabulary.decode(seq.cpu().numpy()) for \
-                      seq in seqs]
+            smiles = [self.vocabulary.decode(seq.cpu().numpy()) for seq in seqs]
             return smiles
         else:
             return sequences
@@ -404,14 +409,13 @@ class OneHotRNN(nn.Module):
         """
         weight = next(self.parameters()).data
         layer_dim = 2 * self.n_layers if self.bidirectional else self.n_layers
-        if self.rnn_type == 'LSTM':
-            return (Variable(weight.new(layer_dim, batch_size,
-                                        self.hidden_size).zero_()),
-                    Variable(weight.new(layer_dim, batch_size,
-                                        self.hidden_size).zero_()))
+        if self.rnn_type == "LSTM":
+            return (
+                Variable(weight.new(layer_dim, batch_size, self.hidden_size).zero_()),
+                Variable(weight.new(layer_dim, batch_size, self.hidden_size).zero_()),
+            )
         else:
-            return Variable(weight.new(layer_dim, batch_size,
-                                       self.hidden_size).zero_())
+            return Variable(weight.new(layer_dim, batch_size, self.hidden_size).zero_())
 
     def init_weights(self):
         """
@@ -422,19 +426,20 @@ class OneHotRNN(nn.Module):
         """
         init.xavier_normal_(self.decoder.weight)
 
+
 def NLLLoss(inputs, targets):
     """
-        Custom Negative Log Likelihood loss that returns loss per example,
-        rather than for the entire batch.
+    Custom Negative Log Likelihood loss that returns loss per example,
+    rather than for the entire batch.
 
-        Obtained from REINVENT source code.
+    Obtained from REINVENT source code.
 
-        Args:
-            inputs : (batch_size, num_classes) *Log probabilities of each class*
-            targets: (batch_size) *Target class index*
+    Args:
+        inputs : (batch_size, num_classes) *Log probabilities of each class*
+        targets: (batch_size) *Target class index*
 
-        Outputs:
-            loss : (batch_size) *Loss for each example*
+    Outputs:
+        loss : (batch_size) *Loss for each example*
     """
 
     if torch.cuda.is_available():
@@ -447,7 +452,8 @@ def NLLLoss(inputs, targets):
     loss = torch.sum(loss, 1)
     return loss
 
-class EarlyStopping():
+
+class EarlyStopping:
     """
     Monitor the training process to stop training early if the model shows
     evidence of beginning to overfit the validation dataset, and save the
@@ -475,8 +481,7 @@ class EarlyStopping():
         self.best_loss = None
         self.step_at_best = 0
         self.stop = False
-        print("instantiated early stopping with patience=" + \
-              str(self.patience))
+        print("instantiated early stopping with patience=" + str(self.patience))
 
     def __call__(self, val_loss, model, output_file, step_idx):
         # do nothing if early stopping is disabled
@@ -490,8 +495,7 @@ class EarlyStopping():
                 self.counter += 1
                 if self.counter >= self.patience:
                     self.stop = True
-                    print("stopping early with best loss " + \
-                          str(self.best_loss))
+                    print("stopping early with best loss " + str(self.best_loss))
             else:
                 # loss is decreasing
                 self.best_loss = val_loss

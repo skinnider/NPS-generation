@@ -9,13 +9,19 @@ from rdkit import Chem
 
 
 # import functions
-from NPS_generation.python.functions import clean_mol, remove_salts_solvents, NeutraliseCharges
+from NPS_generation.python.functions import (
+    clean_mol,
+    remove_salts_solvents,
+    NeutraliseCharges,
+)
+
 
 def add_args(parser):
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input_file', type=str)
-    parser.add_argument('--output_file', type=str)
+    parser.add_argument("--input_file", type=str)
+    parser.add_argument("--output_file", type=str)
     return parser
+
 
 def preprocess_gdb13(input_file, output_file):
     # check output directory exists
@@ -25,16 +31,16 @@ def preprocess_gdb13(input_file, output_file):
 
     # set up output
     if os.path.exists(output_file):
-      os.remove(output_file)
+        os.remove(output_file)
 
-    f_out = open(output_file, 'a+')
+    f_out = open(output_file, "a+")
 
     # read SMILES
-    print('reading input SMILES ...')
+    print("reading input SMILES ...")
     with open(input_file) as f:
         for line_idx, line in enumerate(f):
             # split line
-            split = line.strip().split('\t')
+            split = line.strip().split("\t")
             smiles = split[0]
 
             # convert to molecule
@@ -55,18 +61,15 @@ def preprocess_gdb13(input_file, output_file):
                 next
 
             # append to file
-            _ = f_out.write(canonical + '\n')
+            _ = f_out.write(canonical + "\n")
             f_out.flush()
 
 
 def main(args):
-    preprocess_gdb13(
-        input_file=args.input_file,
-        output_file=args.output_file
-    )
+    preprocess_gdb13(input_file=args.input_file, output_file=args.output_file)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     args = add_args(parser).parse_args()
     main(args)

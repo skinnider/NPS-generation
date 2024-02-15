@@ -19,6 +19,7 @@ import torch
 
 converter = deepsmiles.Converter(rings=True, branches=True)
 
+
 def clean_mol(smiles, stereochem=False, selfies=False, deepsmiles=False):
     """
     Construct a molecule from a SMILES string, removing stereochemistry and
@@ -42,6 +43,7 @@ def clean_mol(smiles, stereochem=False, selfies=False, deepsmiles=False):
     mol = Chem.RemoveHs(mol)
     return mol
 
+
 def clean_mols(all_smiles, stereochem=False, selfies=False, deepsmiles=False):
     """
     Construct a list of molecules from a list of SMILES strings, replacing
@@ -56,6 +58,7 @@ def clean_mols(all_smiles, stereochem=False, selfies=False, deepsmiles=False):
             mols.append(None)
     return mols
 
+
 def remove_salts_solvents(mol, hac=3):
     """
     Remove solvents and ions have max 'hac' heavy atoms.
@@ -64,23 +67,25 @@ def remove_salts_solvents(mol, hac=3):
         https://github.com/samoturk/mol2vec/blob/master/mol2vec/features.py
     """
     # split molecule into fragments
-    fragments = list(rdmolops.GetMolFrags(mol, asMols = True))
+    fragments = list(rdmolops.GetMolFrags(mol, asMols=True))
     ## keep heaviest only
     ## fragments.sort(reverse=True, key=lambda m: m.GetNumAtoms())
     # remove fragments with < 'hac' heavy atoms
-    fragments = [fragment for fragment in fragments if \
-                 fragment.GetNumAtoms() > hac]
+    fragments = [fragment for fragment in fragments if fragment.GetNumAtoms() > hac]
     #
     if len(fragments) > 1:
-        warnings.warn("molecule contains >1 fragment with >" + str(hac) + \
-                      " heavy atoms")
+        warnings.warn(
+            "molecule contains >1 fragment with >" + str(hac) + " heavy atoms"
+        )
         return None
     elif len(fragments) == 0:
-        warnings.warn("molecule contains no fragments with >" + str(hac) + \
-                      " heavy atoms")
+        warnings.warn(
+            "molecule contains no fragments with >" + str(hac) + " heavy atoms"
+        )
         return None
     else:
         return fragments[0]
+
 
 def continuous_KL(generated_dist, original_dist, tol=1e-10):
     """
@@ -104,6 +109,7 @@ def continuous_KL(generated_dist, original_dist, tol=1e-10):
     Q = org_kde(x_eval) + tol
     return entropy(P, Q)
 
+
 def continuous_JSD(generated_dist, original_dist, tol=1e-10):
     gen_kde = gaussian_kde(generated_dist)
     org_kde = gaussian_kde(original_dist)
@@ -113,6 +119,7 @@ def continuous_JSD(generated_dist, original_dist, tol=1e-10):
     Q = org_kde(x_eval) + tol
     return jensenshannon(P, Q)
 
+
 def continuous_EMD(generated_dist, original_dist, tol=1e-10):
     gen_kde = gaussian_kde(generated_dist)
     org_kde = gaussian_kde(original_dist)
@@ -121,6 +128,7 @@ def continuous_EMD(generated_dist, original_dist, tol=1e-10):
     P = gen_kde(x_eval) + tol
     Q = org_kde(x_eval) + tol
     return wasserstein_distance(P, Q)
+
 
 def discrete_KL(generated_dist, original_dist, tol=1e-10):
     """
@@ -135,6 +143,7 @@ def discrete_KL(generated_dist, original_dist, tol=1e-10):
     org += tol
     return entropy(gen, org)
 
+
 def discrete_JSD(generated_dist, original_dist, tol=1e-10):
     gen, bins = histogram(generated_dist, density=True)
     org, bins = histogram(original_dist, density=True)
@@ -142,12 +151,14 @@ def discrete_JSD(generated_dist, original_dist, tol=1e-10):
     org += tol
     return jensenshannon(gen, org)
 
+
 def discrete_EMD(generated_dist, original_dist, tol=1e-10):
     gen, bins = histogram(generated_dist, density=True)
     org, bins = histogram(original_dist, density=True)
     gen += tol
     org += tol
     return wasserstein_distance(gen, org)
+
 
 def get_ecfp6_fingerprints(mols, include_none=False):
     """
@@ -162,7 +173,8 @@ def get_ecfp6_fingerprints(mols, include_none=False):
         else:
             fp = AllChem.GetMorganFingerprintAsBitVect(mol, 3, nBits=1024)
             fps.append(fp)
-    return(fps)
+    return fps
+
 
 def internal_diversity(fps, sample_size=1e4, summarise=True):
     """
@@ -184,6 +196,7 @@ def internal_diversity(fps, sample_size=1e4, summarise=True):
     else:
         return tcs
 
+
 def external_diversity(fps1, fps2, sample_size=1e4, summarise=True):
     """
     Calculate the external diversity, defined as the mean inter-set Tanimoto
@@ -204,6 +217,7 @@ def external_diversity(fps1, fps2, sample_size=1e4, summarise=True):
         return np.mean(tcs)
     else:
         return tcs
+
 
 def internal_nn(fps, sample_size=1e3, summarise=True):
     """
@@ -228,6 +242,7 @@ def internal_nn(fps, sample_size=1e3, summarise=True):
     else:
         return nns
 
+
 def external_nn(fps1, fps2, sample_size=1e3, summarise=True):
     """
     Calculate the nearest-neighbor Tanimoto coefficient, searching one set of
@@ -250,15 +265,16 @@ def external_nn(fps1, fps2, sample_size=1e3, summarise=True):
     else:
         return nns
 
+
 def replace_halogen(smiles):
     """
     Replace halogens with single letters (Cl -> L and Br -> R), following
     Olivecrona et al. (J Cheminf 2018).
     """
-    br = re.compile('Br')
-    cl = re.compile('Cl')
-    smiles = br.sub('R', smiles)
-    smiles = cl.sub('L', smiles)
+    br = re.compile("Br")
+    cl = re.compile("Cl")
+    smiles = br.sub("R", smiles)
+    smiles = cl.sub("L", smiles)
     return smiles
 
 
@@ -268,7 +284,7 @@ def read_smiles(smiles_file, max_lines=None):
     """
     smiles = []
     lines = 0
-    with open(smiles_file, 'r') as f:
+    with open(smiles_file, "r") as f:
         while line := f.readline().strip():
             smiles.append(line)
             lines += 1
@@ -277,14 +293,15 @@ def read_smiles(smiles_file, max_lines=None):
     return smiles
 
 
-def write_smiles(smiles, smiles_file, mode='w'):
+def write_smiles(smiles, smiles_file, mode="w"):
     """
     Write a list of SMILES to a line-delimited file.
     """
     os.makedirs(os.path.dirname(smiles_file), exist_ok=True)
     with open(smiles_file, mode) as f:
         for sm in smiles:
-            _ = f.write(sm + '\n')
+            _ = f.write(sm + "\n")
+
 
 def read_canonical_smiles(smiles_file):
     """
@@ -301,12 +318,15 @@ def read_canonical_smiles(smiles_file):
 
     return canonical_smiles
 
+
 def decrease_learning_rate(optimizer, multiplier=0.99):
     for param_group in optimizer.param_groups:
-        param_group['lr'] *= multiplier
+        param_group["lr"] *= multiplier
 
-def print_update(model, dataset, epoch, batch_idx, training_loss, batch_size,
-                 selfies=False):
+
+def print_update(
+    model, dataset, epoch, batch_idx, training_loss, batch_size, selfies=False
+):
     """
     Print an update on model training, including the current epoch,
     current step (minibatch), training loss, validation loss, a selection of
@@ -328,9 +348,12 @@ def print_update(model, dataset, epoch, batch_idx, training_loss, batch_size,
 
     # print message
     tqdm.write("*" * 50)
-    tqdm.write("epoch {:3d} -- step {:3d} -- loss: {:5.2f} -- ".format(epoch, batch_idx, training_loss) + \
-               "validation loss: {:5.2f}".\
-               format(validation_loss))
+    tqdm.write(
+        "epoch {:3d} -- step {:3d} -- loss: {:5.2f} -- ".format(
+            epoch, batch_idx, training_loss
+        )
+        + "validation loss: {:5.2f}".format(validation_loss)
+    )
 
     # sample a batch of SMILES and print them
     n_smiles = batch_size
@@ -351,8 +374,8 @@ def print_update(model, dataset, epoch, batch_idx, training_loss, batch_size,
     pct_valid = 100 * valid / n_smiles
     tqdm.write("{:>4.1f}% valid SMILES".format(pct_valid) + "\n")
 
-def track_loss(output_file, model, dataset, epoch, step_idx,
-               training_loss, batch_size):
+
+def track_loss(output_file, model, dataset, epoch, step_idx, training_loss, batch_size):
     """
     Log model training and validation losses to a file.
 
@@ -370,18 +393,23 @@ def track_loss(output_file, model, dataset, epoch, step_idx,
     sched = pd.DataFrame()
     validation, lengths = dataset.get_validation(batch_size)
     validation_loss = model.loss(validation, lengths).mean().detach().item()
-    sched = pd.DataFrame({'epoch': epoch + 1, 'step': step_idx,
-                          'outcome': ['training loss', 'validation loss'],
-                          'value': [training_loss, validation_loss]})
+    sched = pd.DataFrame(
+        {
+            "epoch": epoch + 1,
+            "step": step_idx,
+            "outcome": ["training loss", "validation loss"],
+            "value": [training_loss, validation_loss],
+        }
+    )
 
     # write training schedule (write header if file does not exist)
     if not os.path.isfile(output_file) or step_idx == 0:
         sched.to_csv(output_file, index=False)
     else:
-        sched.to_csv(output_file, index=False, mode='a', header=False)
+        sched.to_csv(output_file, index=False, mode="a", header=False)
 
-def sample_smiles(output_dir, sample_idx, model, sample_size, epoch,
-                  step_idx):
+
+def sample_smiles(output_dir, sample_idx, model, sample_size, epoch, step_idx):
     """
     Sample a set of SMILES from a trained model, and write them to a file
 
@@ -403,17 +431,25 @@ def sample_smiles(output_dir, sample_idx, model, sample_size, epoch,
     # set up output filename
     if step_idx == "NA":
         # writing by epoch: don't include batch index
-        smiles_filename = "sample-" + str(sample_idx + 1) + \
-            "-epoch=" + str(epoch + 1) + "-SMILES.smi"
+        smiles_filename = (
+            "sample-" + str(sample_idx + 1) + "-epoch=" + str(epoch + 1) + "-SMILES.smi"
+        )
     else:
         # writing by step: calculate overall step
-        smiles_filename = "sample-" + str(sample_idx + 1) + \
-            "-epoch=" + str(epoch + 1) + "-step=" + str(step_idx) + \
-            "-SMILES.smi"
+        smiles_filename = (
+            "sample-"
+            + str(sample_idx + 1)
+            + "-epoch="
+            + str(epoch + 1)
+            + "-step="
+            + str(step_idx)
+            + "-SMILES.smi"
+        )
 
     # write to file
     smiles_file = os.path.join(output_dir, smiles_filename)
     write_smiles(sampled_smiles, smiles_file)
+
 
 """
 rdkit contributed code to neutralize charged molecules;
@@ -421,37 +457,42 @@ obtained from:
     https://www.rdkit.org/docs/Cookbook.html
     http://www.mail-archive.com/rdkit-discuss@lists.sourceforge.net/msg02669.html
 """
-def _InitialiseNeutralisationReactions():
-    patts= (
-        # Imidazoles
-        ('[n+;H]','n'),
-        # Amines
-        ('[N+;!H0]','N'),
-        # Carboxylic acids and alcohols
-        ('[$([O-]);!$([O-][#7])]','O'),
-        # Thiols
-        ('[S-;X1]','S'),
-        # Sulfonamides
-        ('[$([N-;X2]S(=O)=O)]','N'),
-        # Enamines
-        ('[$([N-;X2][C,N]=C)]','N'),
-        # Tetrazoles
-        ('[n-]','[nH]'),
-        # Sulfoxides
-        ('[$([S-]=O)]','S'),
-        # Amides
-        ('[$([N-]C=O)]','N'),
-        )
-    return [(Chem.MolFromSmarts(x),Chem.MolFromSmiles(y,False)) for x,y in patts]
 
-_reactions=None
+
+def _InitialiseNeutralisationReactions():
+    patts = (
+        # Imidazoles
+        ("[n+;H]", "n"),
+        # Amines
+        ("[N+;!H0]", "N"),
+        # Carboxylic acids and alcohols
+        ("[$([O-]);!$([O-][#7])]", "O"),
+        # Thiols
+        ("[S-;X1]", "S"),
+        # Sulfonamides
+        ("[$([N-;X2]S(=O)=O)]", "N"),
+        # Enamines
+        ("[$([N-;X2][C,N]=C)]", "N"),
+        # Tetrazoles
+        ("[n-]", "[nH]"),
+        # Sulfoxides
+        ("[$([S-]=O)]", "S"),
+        # Amides
+        ("[$([N-]C=O)]", "N"),
+    )
+    return [(Chem.MolFromSmarts(x), Chem.MolFromSmiles(y, False)) for x, y in patts]
+
+
+_reactions = None
+
+
 def NeutraliseCharges(mol, reactions=None):
     global _reactions
     if reactions is None:
         if _reactions is None:
-            _reactions=_InitialiseNeutralisationReactions()
-        reactions=_reactions
-    for i,(reactant, product) in enumerate(reactions):
+            _reactions = _InitialiseNeutralisationReactions()
+        reactions = _reactions
+    for i, (reactant, product) in enumerate(reactions):
         while mol.HasSubstructMatch(reactant):
             rms = AllChem.ReplaceSubstructs(mol, reactant, product)
             mol = rms[0]

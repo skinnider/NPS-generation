@@ -11,8 +11,13 @@ from rdkit import Chem
 from tqdm import tqdm
 
 # import functions
-from NPS_generation.functions import clean_mols, remove_salts_solvents, read_smiles, \
-    NeutraliseCharges
+from NPS_generation.functions import (
+    clean_mols,
+    remove_salts_solvents,
+    read_smiles,
+    NeutraliseCharges,
+)
+
 # import Vocabulary
 from NPS_generation.datasets import Vocabulary
 
@@ -40,19 +45,22 @@ def main(input_file, output_file):
     mols = [mol for mol in mols if mol]
     # remove charges
     mols = [NeutraliseCharges(mol) for mol in tqdm(mols)]
-    print("parsed " + str(len(mols)) + \
-          " molecules with >3 heavy atoms and 1 fragment")
+    print("parsed " + str(len(mols)) + " molecules with >3 heavy atoms and 1 fragment")
 
     # remove molecules with invalid atoms
     ## what unique atoms are present in any molecule?
     elements = [[atom.GetSymbol() for atom in mol.GetAtoms()] for mol in mols]
     counts = np.unique(list(chain(*elements)), return_counts=True)
     ## define valid symbols
-    valid = set(['Br', 'C', 'Cl', 'F', 'H', 'I', 'N', 'O', 'P', 'S'])
-    mols = [mols[idx] for idx, atoms in enumerate(elements) if \
-            len(set(atoms) - valid) == 0]
-    print("parsed " + str(len(mols)) + \
-          " molecules with all valid atoms (C/N/O/P/S/F/Br/Cl/I)")
+    valid = set(["Br", "C", "Cl", "F", "H", "I", "N", "O", "P", "S"])
+    mols = [
+        mols[idx] for idx, atoms in enumerate(elements) if len(set(atoms) - valid) == 0
+    ]
+    print(
+        "parsed "
+        + str(len(mols))
+        + " molecules with all valid atoms (C/N/O/P/S/F/Br/Cl/I)"
+    )
 
     # convert back to SMILES
     smiles = [Chem.MolToSmiles(mol, isomericSmiles=False) for mol in tqdm(mols)]
@@ -77,16 +85,20 @@ def main(input_file, output_file):
     # recreate the vocabulary and print new dataset size
     vocabulary = Vocabulary(smiles=smiles)
     vocab_after = len(vocabulary)
-    print("after removing tokens found in <0.01% of molecules, {} remain".format(
-        len(smiles)))
-    print("updated vocabulary of {} (of {}) characters:".format(
-        vocab_after, vocab_before))
+    print(
+        "after removing tokens found in <0.01% of molecules, {} remain".format(
+            len(smiles)
+        )
+    )
+    print(
+        "updated vocabulary of {} (of {}) characters:".format(vocab_after, vocab_before)
+    )
     print(vocabulary.characters)
 
     # write to line-delimited file
-    with open(output_file, 'w') as f:
+    with open(output_file, "w") as f:
         for sm in smiles:
-            _ = f.write(sm + '\n')
+            _ = f.write(sm + "\n")
 
     print("wrote " + str(len(smiles)) + " SMILES to output file: " + output_file)
 

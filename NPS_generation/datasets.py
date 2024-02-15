@@ -17,8 +17,9 @@ class SmilesDataset(Dataset):
     A dataset of chemical structures, provided in SMILES format.
     """
 
-    def __init__(self, smiles=None, smiles_file=None, vocab_file=None,
-                 training_split=0.9):
+    def __init__(
+        self, smiles=None, smiles_file=None, vocab_file=None, training_split=0.9
+    ):
         """
         Can be initiated from either a list of SMILES, or a line-delimited
         file.
@@ -38,8 +39,9 @@ class SmilesDataset(Dataset):
         elif smiles_file:
             self.smiles = read_smiles(smiles_file)
         else:
-            raise ValueError("must provide SMILES list or file to" + \
-                             " instantiate SmilesDataset")
+            raise ValueError(
+                "must provide SMILES list or file to" + " instantiate SmilesDataset"
+            )
 
         # create vocabulary
         if vocab_file:
@@ -49,20 +51,25 @@ class SmilesDataset(Dataset):
 
         # split into training and validation sets
         n_smiles = len(self.smiles)
-        split = np.random.choice(range(n_smiles),
-                                 size=int(n_smiles * training_split),
-                                 replace=False)
-        self.training = [self.smiles[idx] for idx in \
-                         range(len(self.smiles)) if idx in split]
-        self.validation = [self.smiles[idx] for idx in \
-                           range(len(self.smiles)) if not idx in split]
+        split = np.random.choice(
+            range(n_smiles), size=int(n_smiles * training_split), replace=False
+        )
+        self.training = [
+            self.smiles[idx] for idx in range(len(self.smiles)) if idx in split
+        ]
+        self.validation = [
+            self.smiles[idx] for idx in range(len(self.smiles)) if not idx in split
+        ]
 
     def get_validation(self, n_smiles):
         validation_size = len(self.validation)
-        idxs = np.random.choice(np.asarray(range(validation_size)),
-                                size=n_smiles)
-        encoded = [Variable(self.vocabulary.encode(self.vocabulary.tokenize(
-                   self.validation[idx]))) for idx in idxs]
+        idxs = np.random.choice(np.asarray(range(validation_size)), size=n_smiles)
+        encoded = [
+            Variable(
+                self.vocabulary.encode(self.vocabulary.tokenize(self.validation[idx]))
+            )
+            for idx in idxs
+        ]
         collate_fn = SmilesCollate(self.vocabulary)
         return collate_fn(encoded)
 
@@ -70,13 +77,18 @@ class SmilesDataset(Dataset):
         return len(self.training)
 
     def __getitem__(self, idx):
-        return Variable(self.vocabulary.encode(
-                self.vocabulary.tokenize(self.training[idx])))
+        return Variable(
+            self.vocabulary.encode(self.vocabulary.tokenize(self.training[idx]))
+        )
 
     def __str__(self):
-        return "dataset containing " + str(len(self)) + \
-            " SMILES with a vocabulary of " + str(len(self.vocabulary)) + \
-            " characters"
+        return (
+            "dataset containing "
+            + str(len(self))
+            + " SMILES with a vocabulary of "
+            + str(len(self.vocabulary))
+            + " characters"
+        )
 
 
 class SelfiesDataset(Dataset):
@@ -84,8 +96,9 @@ class SelfiesDataset(Dataset):
     A dataset of chemical structures, provided in SELFIES format.
     """
 
-    def __init__(self, selfies=None, selfies_file=None, vocab_file=None,
-                 training_split=0.9):
+    def __init__(
+        self, selfies=None, selfies_file=None, vocab_file=None, training_split=0.9
+    ):
         """
         Can be initiated from either a list of SELFIES, or a line-delimited
         file.
@@ -103,8 +116,9 @@ class SelfiesDataset(Dataset):
         elif selfies_file is not None:
             self.selfies = read_smiles(selfies_file)
         else:
-            raise ValueError("must provide SELFIES list or file to" + \
-                             " instantiate SelfiesDataset")
+            raise ValueError(
+                "must provide SELFIES list or file to" + " instantiate SelfiesDataset"
+            )
 
         # create vocabulary
         if vocab_file:
@@ -114,20 +128,25 @@ class SelfiesDataset(Dataset):
 
         # split into training and validation sets
         n_selfies = len(self.selfies)
-        split = np.random.choice(range(n_selfies),
-                                 size=int(n_selfies * training_split),
-                                 replace=False)
-        self.training = [self.selfies[idx] for idx in \
-                         range(len(self.selfies)) if idx in split]
-        self.validation = [self.selfies[idx] for idx in \
-                           range(len(self.selfies)) if not idx in split]
+        split = np.random.choice(
+            range(n_selfies), size=int(n_selfies * training_split), replace=False
+        )
+        self.training = [
+            self.selfies[idx] for idx in range(len(self.selfies)) if idx in split
+        ]
+        self.validation = [
+            self.selfies[idx] for idx in range(len(self.selfies)) if not idx in split
+        ]
 
     def get_validation(self, n_selfies):
         validation_size = len(self.validation)
-        idxs = np.random.choice(np.asarray(range(validation_size)),
-                                size=n_selfies)
-        encoded = [Variable(self.vocabulary.encode(self.vocabulary.tokenize(
-                   self.validation[idx]))) for idx in idxs]
+        idxs = np.random.choice(np.asarray(range(validation_size)), size=n_selfies)
+        encoded = [
+            Variable(
+                self.vocabulary.encode(self.vocabulary.tokenize(self.validation[idx]))
+            )
+            for idx in idxs
+        ]
         collate_fn = SmilesCollate(self.vocabulary)
         return collate_fn(encoded)
 
@@ -135,13 +154,18 @@ class SelfiesDataset(Dataset):
         return len(self.training)
 
     def __getitem__(self, idx):
-        return Variable(self.vocabulary.encode(
-                self.vocabulary.tokenize(self.training[idx])))
+        return Variable(
+            self.vocabulary.encode(self.vocabulary.tokenize(self.training[idx]))
+        )
 
     def __str__(self):
-        return "dataset containing " + str(len(self)) + \
-            " SELFIES with a vocabulary of " + str(len(self.vocabulary)) + \
-            " characters"
+        return (
+            "dataset containing "
+            + str(len(self))
+            + " SELFIES with a vocabulary of "
+            + str(len(self.vocabulary))
+            + " characters"
+        )
 
 
 class SmilesCollate:
@@ -160,8 +184,9 @@ class SmilesCollate:
         a tensor of dimension (batch_size, seq_len) containing encoded and
           padded sequences
     """
+
     def __init__(self, vocabulary):
-        padding_token = vocabulary.dictionary['<PAD>']
+        padding_token = vocabulary.dictionary["<PAD>"]
         self.padding_token = padding_token
 
     def __call__(self, batch):
@@ -169,9 +194,11 @@ class SmilesCollate:
         sorted_batch = sorted(batch, key=lambda x: x.shape[0], reverse=True)
         # get each sequence and pad it
         sequences = [x for x in sorted_batch]
-        padded = Variable(rnn_utils.pad_sequence(
-                sequences, padding_value=self.padding_token).\
-                transpose_(1, 0))
+        padded = Variable(
+            rnn_utils.pad_sequence(
+                sequences, padding_value=self.padding_token
+            ).transpose_(1, 0)
+        )
         # also store lengths of each sequence (needed to unpad)
         lengths = torch.LongTensor([len(x) for x in sequences])
         return padded, lengths
@@ -205,21 +232,21 @@ class Vocabulary:
             elif smiles_file is not None:
                 self.smiles = read_smiles(smiles_file)
             else:
-                raise ValueError("must provide SMILES list or file to" + \
-                                 " instantiate Vocabulary")
+                raise ValueError(
+                    "must provide SMILES list or file to" + " instantiate Vocabulary"
+                )
             # tokenize all SMILES in the input and add all tokens to vocabulary
             all_chars = [self.tokenize(sm) for sm in self.smiles]
             self.characters = np.unique(np.array(list(chain(*all_chars)))).tolist()
 
         # add padding token
-        if not '<PAD>' in self.characters:
+        if not "<PAD>" in self.characters:
             # ... unless reading a padded vocabulary from file
-            self.characters.append('<PAD>')
-        
+            self.characters.append("<PAD>")
+
         # create dictionaries
         self.dictionary = {key: idx for idx, key in enumerate(self.characters)}
-        self.reverse_dictionary = {value: key for key, value in \
-                                   self.dictionary.items()}
+        self.reverse_dictionary = {value: key for key, value in self.dictionary.items()}
 
     """
     Regular expressions used to tokenize SMILES strings; borrowed from
@@ -228,7 +255,7 @@ class Vocabulary:
     REGEXPS = {
         "brackets": re.compile(r"(\[[^\]]*\])"),
         "2_ring_nums": re.compile(r"(%\d{2})"),
-        "brcl": re.compile(r"(Br|Cl)")
+        "brcl": re.compile(r"(Br|Cl)"),
     }
     REGEXP_ORDER = ["brackets", "2_ring_nums", "brcl"]
 
@@ -236,6 +263,7 @@ class Vocabulary:
         """
         Convert a SMILES string into a sequence of tokens.
         """
+
         def split_by(smiles, regexps):
             if not regexps:
                 return list(smiles)
@@ -268,9 +296,9 @@ class Vocabulary:
         """
         chars = []
         for i in sequence:
-            if i == self.dictionary['EOS']:
+            if i == self.dictionary["EOS"]:
                 break
-            if i != self.dictionary['SOS']:
+            if i != self.dictionary["SOS"]:
                 chars.append(self.reverse_dictionary[i])
         smiles = "".join(chars)
         # smiles = smiles.replace("L", "Cl").replace("R", "Br")
@@ -280,16 +308,20 @@ class Vocabulary:
         """
         Write the list of tokens in a vocabulary to a line-delimited file.
         """
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             for char in self.characters:
-                f.write(char + '\n')
+                f.write(char + "\n")
 
     def __len__(self):
         return len(self.characters)
 
     def __str__(self):
-        return "vocabulary containing " + str(len(self)) + " characters: " + \
-            format(self.characters)
+        return (
+            "vocabulary containing "
+            + str(len(self))
+            + " characters: "
+            + format(self.characters)
+        )
 
 
 class SelfiesVocabulary:
@@ -314,7 +346,9 @@ class SelfiesVocabulary:
             # read tokens from file, and add to vocabulary
             all_chars = read_smiles(vocab_file)
             # prevent chain popping open multi-character tokens
-            self.characters = np.unique(np.array(chain(*[[char] for char in all_chars]))).tolist()
+            self.characters = np.unique(
+                np.array(chain(*[[char] for char in all_chars]))
+            ).tolist()
         else:
             # read SMILES
             if selfies is not None:
@@ -322,21 +356,21 @@ class SelfiesVocabulary:
             elif selfies_file is not None:
                 self.selfies = read_smiles(selfies_file)
             else:
-                raise ValueError("must provide SELFIES list or file to" + \
-                                 " instantiate Vocabulary")
+                raise ValueError(
+                    "must provide SELFIES list or file to" + " instantiate Vocabulary"
+                )
             # tokenize all SMILES in the input and add all tokens to vocabulary
             alphabet = sorted(list(sf.get_alphabet_from_selfies(self.selfies)))
             self.characters = alphabet
 
         # add padding token
-        self.characters.append('<PAD>')
+        self.characters.append("<PAD>")
         # add SOS/EOS tokens
-        self.characters.append('SOS')
-        self.characters.append('EOS')
+        self.characters.append("SOS")
+        self.characters.append("EOS")
         # create dictionaries
         self.dictionary = {key: idx for idx, key in enumerate(self.characters)}
-        self.reverse_dictionary = {value: key for key, value in \
-                                   self.dictionary.items()}
+        self.reverse_dictionary = {value: key for key, value in self.dictionary.items()}
 
     def tokenize(self, selfie):
         """
@@ -361,9 +395,9 @@ class SelfiesVocabulary:
         """
         chars = []
         for i in sequence:
-            if i == self.dictionary['EOS']:
+            if i == self.dictionary["EOS"]:
                 break
-            if i != self.dictionary['SOS']:
+            if i != self.dictionary["SOS"]:
                 chars.append(self.reverse_dictionary[i])
         smiles = "".join(chars)
         return smiles
@@ -372,16 +406,20 @@ class SelfiesVocabulary:
         """
         Write the list of tokens in a vocabulary to a line-delimited file.
         """
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             for char in self.characters:
-                f.write(char + '\n')
+                f.write(char + "\n")
 
     def __len__(self):
         return len(self.characters)
 
     def __str__(self):
-        return "vocabulary containing " + str(len(self)) + " characters: " + \
-            format(self.characters)
+        return (
+            "vocabulary containing "
+            + str(len(self))
+            + " characters: "
+            + format(self.characters)
+        )
 
 
 def vocabulary_from_representation(representation, smiles_or_selfies):
@@ -395,10 +433,10 @@ def vocabulary_from_representation(representation, smiles_or_selfies):
 
 def Variable(tensor):
     """Wrapper for torch.autograd.Variable that also accepts
-       numpy arrays directly and automatically assigns it to
-       the GPU. Be aware in case some operations are better
-       left to the CPU.
-       Obtained from REINVENT source code."""
+    numpy arrays directly and automatically assigns it to
+    the GPU. Be aware in case some operations are better
+    left to the CPU.
+    Obtained from REINVENT source code."""
     if isinstance(tensor, np.ndarray):
         tensor = torch.from_numpy(tensor)
     if torch.cuda.is_available():

@@ -17,54 +17,69 @@ from selfies.exceptions import EncoderError
 from tqdm import tqdm
 
 # import functions
-from NPS_generation.python.functions import read_smiles, write_smiles, clean_mols, \
-    remove_salts_solvents, NeutraliseCharges
+from NPS_generation.python.functions import (
+    read_smiles,
+    write_smiles,
+    clean_mols,
+    remove_salts_solvents,
+    NeutraliseCharges,
+)
 from NPS_generation.python.datasets import Vocabulary, SelfiesVocabulary
 from NPS_generation.python.util.SmilesEnumerator import SmilesEnumerator
 
 
 def add_args(parser):
-    parser.add_argument('--input_file', type=str)
-    parser.add_argument('--train_file', type=str)
-    parser.add_argument('--test_file', type=str)
-    parser.add_argument('--vocab_file', type=str)
-    parser.add_argument('--representation', type=str)
-    parser.add_argument('--k', type=int)
-    parser.add_argument('--cv_fold', type=int)
-    parser.add_argument('--sample_idx', type=int)
-    parser.add_argument('--enum_factor', type=int)
+    parser.add_argument("--input_file", type=str)
+    parser.add_argument("--train_file", type=str)
+    parser.add_argument("--test_file", type=str)
+    parser.add_argument("--vocab_file", type=str)
+    parser.add_argument("--representation", type=str)
+    parser.add_argument("--k", type=int)
+    parser.add_argument("--cv_fold", type=int)
+    parser.add_argument("--sample_idx", type=int)
+    parser.add_argument("--enum_factor", type=int)
     return parser
 
 
-def preprocess_prior_datasets(input_file, train_file, test_file, vocab_file, representation, k, cv_fold, sample_idx,
-                              enum_factor):
+def preprocess_prior_datasets(
+    input_file,
+    train_file,
+    test_file,
+    vocab_file,
+    representation,
+    k,
+    cv_fold,
+    sample_idx,
+    enum_factor,
+):
     # check output directory exists
     output_dir = os.path.dirname(train_file)
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
 
     # read SMILES
-    print('reading input SMILES ...')
+    print("reading input SMILES ...")
     input_smiles = read_smiles(input_file)
 
     # convert to molecules
-    print('converting {} input SMILES to molecules ...'.format(len(input_smiles)))
+    print("converting {} input SMILES to molecules ...".format(len(input_smiles)))
     mols = clean_mols(input_smiles)
 
-    # remove salts/solvents 
-    print('cleaning {} molecules ...'.format(len(mols)))
-    mols = [remove_salts_solvents(mol, hac=3) if mol else None for mol in \
-            tqdm(mols)]
+    # remove salts/solvents
+    print("cleaning {} molecules ...".format(len(mols)))
+    mols = [remove_salts_solvents(mol, hac=3) if mol else None for mol in tqdm(mols)]
     # remove charges
     mols = [NeutraliseCharges(mol) if mol else None for mol in tqdm(mols)]
-    # remove molecules with invalid atoms 
-    ## what unique atoms are present in any molecule? 
-    elements = [[atom.GetSymbol() for atom in mol.GetAtoms()] if mol else None \
-                for mol in mols]
-    counts = np.unique(list(chain(*[element for element in elements if element])),
-                       return_counts=True)
+    # remove molecules with invalid atoms
+    ## what unique atoms are present in any molecule?
+    elements = [
+        [atom.GetSymbol() for atom in mol.GetAtoms()] if mol else None for mol in mols
+    ]
+    counts = np.unique(
+        list(chain(*[element for element in elements if element])), return_counts=True
+    )
     ## define valid symbols
-    valid = set(['Br', 'C', 'Cl', 'F', 'H', 'I', 'N', 'O', 'P', 'S'])
+    valid = set(["Br", "C", "Cl", "F", "H", "I", "N", "O", "P", "S"])
     for idx, atoms in enumerate(elements):
         if atoms is not None and len(set(atoms) - valid) > 0:
             mols[idx] = None
@@ -72,11 +87,11 @@ def preprocess_prior_datasets(input_file, train_file, test_file, vocab_file, rep
     mols = [mol for mol in mols if mol is not None]
 
     # convert back to canonical SMILES
-    print('converting {} molecules back to SMILES ...'.format(len(mols)))
+    print("converting {} molecules back to SMILES ...".format(len(mols)))
     canonical = [Chem.MolToSmiles(mol) for mol in tqdm(mols)]
     canonical = [sm for sm in canonical if sm != ""]
     canonical = list(dict.fromkeys(canonical))
-    print('got {} unique canonical SMILES'.format(len(canonical)))
+    print("got {} unique canonical SMILES".format(len(canonical)))
 
     # split into folds
     random.seed(sample_idx)
@@ -84,9 +99,9 @@ def preprocess_prior_datasets(input_file, train_file, test_file, vocab_file, rep
     fold_length = int(len(canonical) / k)
     folds = []
     for i in range(k - 1):
-        folds += [canonical[i * fold_length:(i + 1) * fold_length]]
+        folds += [canonical[i * fold_length : (i + 1) * fold_length]]
 
-    folds += [canonical[(k - 1) * fold_length:len(canonical)]]
+    folds += [canonical[(k - 1) * fold_length : len(canonical)]]
 
     # augment each fold
     if enum_factor > 0:
@@ -114,12 +129,12 @@ def preprocess_prior_datasets(input_file, train_file, test_file, vocab_file, rep
     # collapse fold into training/test datasets
     fold_idx = cv_fold - 1
     test = folds[fold_idx]
-    train = folds[:fold_idx] + folds[fold_idx + 1:]
+    train = folds[:fold_idx] + folds[fold_idx + 1 :]
     train = list(itertools.chain.from_iterable(train))
 
     # optionally, convert to SELFIES
-    if representation == 'SELFIES':
-        print('converting SMILES strings to SELFIES ...')
+    if representation == "SELFIES":
+        print("converting SMILES strings to SELFIES ...")
         train_out = []
         for sm in train:
             try:
@@ -144,7 +159,7 @@ def preprocess_prior_datasets(input_file, train_file, test_file, vocab_file, rep
     write_smiles(test, test_file)
 
     # last, write vocabulary
-    if representation == 'SELFIES':
+    if representation == "SELFIES":
         vocabulary = SelfiesVocabulary(selfies=train)
     else:
         vocabulary = Vocabulary(smiles=train)
@@ -152,9 +167,9 @@ def preprocess_prior_datasets(input_file, train_file, test_file, vocab_file, rep
     print("vocabulary of {} characters:".format(len(vocabulary)))
     print(vocabulary.characters)
     tokens = vocabulary.characters
-    with open(vocab_file, 'w') as f:
+    with open(vocab_file, "w") as f:
         for token in tokens:
-            _ = f.write(token + '\n')
+            _ = f.write(token + "\n")
 
 
 def main(args):
@@ -171,7 +186,7 @@ def main(args):
     )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     args = add_args(parser).parse_args()
     main(args)

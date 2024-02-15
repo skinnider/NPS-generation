@@ -2,12 +2,10 @@ import argparse
 import numpy as np
 import os
 import pandas as pd
-from rdkit.Chem import AllChem, Descriptors, rdMolDescriptors
-from rdkit.DataStructs import FingerprintSimilarity
+from rdkit.Chem import Descriptors, rdMolDescriptors
 from tqdm import tqdm
 
-from NPS_generation.python.functions import clean_mol, clean_mols, get_ecfp6_fingerprints, \
-    read_smiles
+from NPS_generation.python.functions import clean_mol, clean_mols, read_smiles
 from NPS_generation.functions import set_seed, seed_type
 
 # suppress rdkit errors
@@ -18,7 +16,6 @@ rdBase.DisableLog('rdApp.error')
 
 def add_args(parser):
     parser.add_argument('--ranks_file', type=str)
-    parser.add_argument('--tc_file', type=str)
     parser.add_argument('--train_file', type=str)
     parser.add_argument('--test_file', type=str)
     parser.add_argument('--pubchem_file', type=str)
@@ -26,12 +23,11 @@ def add_args(parser):
     parser.add_argument('--err_ppm', type=int)
     parser.add_argument('--chunk_size', type=int, default=100000)
     parser.add_argument('--seed', type=seed_type, default=None, nargs="?", help="Random seed")
-
     return parser
 
 
-def write_structural_prior_CV(ranks_file, tc_file, train_file, test_file, pubchem_file, sample_file, err_ppm,
-                              chunk_size, seed):
+def inner_write_formula_prior_CV(ranks_file, train_file, test_file, pubchem_file, sample_file, err_ppm, chunk_size,
+                                 seed):
     set_seed(seed)
 
     # read training and test sets
@@ -83,7 +79,6 @@ def write_structural_prior_CV(ranks_file, tc_file, train_file, test_file, pubche
 
     # set up outputs
     rank_df = pd.DataFrame()
-    tc_df = pd.DataFrame()
 
     # iterate through PubChem vs. generative model
     inputs = {'model': gen.assign(source='model'),
@@ -97,8 +92,6 @@ def write_structural_prior_CV(ranks_file, tc_file, train_file, test_file, pubche
             # get formula and exact mass
             query_mol = clean_mol(row.smiles)
             query_mass = Descriptors.ExactMolWt(query_mol)
-            query_fp = AllChem.GetMorganFingerprintAsBitVect(query_mol, 3,
-                                                             nBits=1024)
 
             # compute 10 ppm range
             min_mass = (-err_ppm / 1e6 * query_mass) + query_mass
@@ -119,10 +112,10 @@ def write_structural_prior_CV(ranks_file, tc_file, train_file, test_file, pubche
             # add 'target_' to all columns in matches
             matches.columns = 'target_' + matches.columns
 
-            # get the rank of the correct molecule
-            rank = matches[matches['target_smiles'] ==
-                           row.smiles][['target_size', 'target_rank',
-                                        'target_source']]
+            # get the rank of the correct formula
+            rank = matches[matches['target_formula'] ==
+                           row.formula][['target_size', 'target_rank',
+                                         'target_source']]
             if rank.shape[0] > 1:
                 rank = rank.head(1)
             elif rank.shape[0] == 0:
@@ -131,42 +124,10 @@ def write_structural_prior_CV(ranks_file, tc_file, train_file, test_file, pubche
                                      'target_source': key}, index=[0])
 
             # assign number of candidates
-            rank = rank.assign(n_candidates=matches.shape[0])
+            n_formulas = len(matches.target_formula.unique())
+            rank = rank.assign(n_candidates=n_formulas)
 
-            # get the Tc of the top match
-            top_n = 1
-            tc = matches
-            if tc.shape[0] > top_n:
-                tc = tc.head(top_n)
-            # add a random match
-            if key == "model" and matches.shape[0] > 1:
-                rnd = matches.tail(-top_n).sample()
-                tc = pd.concat([tc, rnd])
-
-            # compute Tc
-            if tc.shape[0] > 0:
-                target_mols = clean_mols(tc['target_smiles'].values, disable_progress=True)
-                keep = [idx for idx, mol in enumerate(target_mols) if mol]
-                tc = tc.iloc[keep, :]
-                target_mols = [mol for mol in target_mols if mol]
-                target_fps = get_ecfp6_fingerprints(target_mols)
-                tcs = [FingerprintSimilarity(query_fp, target_fp) for \
-                       target_fp in target_fps]
-                tc = tc.assign(Tc=tcs)
-            else:
-                # fill with empty data frame if there were no matches
-                tc = pd.DataFrame({'target_size': np.nan,
-                                   'target_rank': np.nan,
-                                   'target_source': key,
-                                   'Tc': np.nan}, index=[0])
-
-            # now, append Tc to the growing data frame
-            tc_row = pd.concat(
-                [pd.DataFrame([row]).iloc[np.full(tc.shape[0], 0)]. \
-                     reset_index(drop=True), tc.reset_index(drop=True)], axis=1)
-            tc_df = pd.concat([tc_df, tc_row])
-
-            # do the same for rank
+            # now, append rank to the growing data frame
             rank_row = pd.concat([pd.DataFrame([row]).reset_index(drop=True),
                                   rank.reset_index(drop=True)], axis=1)
             rank_df = pd.concat([rank_df, rank_row])
@@ -174,22 +135,18 @@ def write_structural_prior_CV(ranks_file, tc_file, train_file, test_file, pubche
     # write to output files
     os.makedirs(os.path.dirname(ranks_file), exist_ok=True)
     rank_df.to_csv(ranks_file, index=False,
-                   compression='gzip' if ranks_file.endswith('.gz') else None)
-    os.makedirs(os.path.dirname(tc_file), exist_ok=True)
-    tc_df.to_csv(tc_file, index=False,
-                 compression='gzip' if args.tc_file.endswith('.gz') else None)
-
+                  compression='gzip' if ranks_file.endswith('.gz') else None)
 
 def main(args):
-    write_structural_prior_CV(ranks_file=args.ranks_file,
-                              tc_file=args.tc_file,
-                              train_file=args.train_file,
-                              test_file=args.test_file,
-                              pubchem_file=args.pubchem_file,
-                              sample_file=args.sample_file,
-                              err_ppm=args.err_ppm,
-                              chunk_size=args.chunk_size,
-                              seed=args.seed)
+    inner_write_formula_prior_CV(ranks_file=args.ranks_file,
+                                 train_file=args.train_file,
+                                 test_file=args.test_file,
+                                 pubchem_file=args.pubchem_file,
+                                 sample_file=args.sample_file,
+                                 err_ppm=args.err_ppm,
+                                 chunk_size=args.chunk_size,
+                                 seed=args.seed
+                                 )
 
 
 if __name__ == '__main__':

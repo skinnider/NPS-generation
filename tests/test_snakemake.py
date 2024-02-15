@@ -24,7 +24,6 @@ def test_snakemake():
             dryrun=False,
             latency_wait=60,
             forceall=True,
-            workdir=os.path.dirname(snakefile),  # TODO: Only needed till rules call scripts, not nps commands
             verbose=True
         )
         assert success, "Snakemake did not complete successfully"
